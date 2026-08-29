@@ -1,0 +1,98 @@
+n(n-1,int((n-1)*pos))))
+            ok,frame=cap.read(); cap.release()
+            if not ok: raise RuntimeError("Não foi possível ler o quadro de prévia.")
+            layers=[LayerSpec.from_dict(x.to_dict()) for x in self.layers]
+            fitted=cv2.resize(frame,(w,h),interpolation=cv2.INTER_AREA) if frame.shape[1]!=w or frame.shape[0]!=h else frame.copy()
+            out,renderer,_meta=preview_layers(frame,w,h,layers,resize_mode=RESIZE_BY_LABEL[self.resize_var.get()],seed=int(self.seed_var.get()),gpu_mode=GPU_BY_LABEL[self.gpu_var.get()],scene_mode=SCENE_BY_LABEL[self.scene_mode_var.get()],scene_threshold=self.scene_threshold_var.get()/100)
+            # Build a side-by-side comparison with labels baked into the image.
+            from .engine import fit_frame
+            before=fit_frame(frame,w,h,RESIZE_BY_LABEL[self.resize_var.get()])
+            max_h=560; scale=min(1.0,max_h/max(1,h)); dw=max(1,int(w*scale)); dh=max(1,int(h*scale))
+            b=cv2.resize(before,(dw,dh),interpolation=cv2.INTER_AREA); a=cv2.resize(out,(dw,dh),interpolation=cv2.INTER_AREA)
+            cv2.putText(b,"ANTES",(18,36),cv2.FONT_HERSHEY_SIMPLEX,0.8,(235,235,235),2,cv2.LINE_AA); cv2.putText(a,"DEPOIS",(18,36),cv2.FONT_HERSHEY_SIMPLEX,0.8,(235,235,235),2,cv2.LINE_AA)
+            comp=cv2.hconcat([b,a]); rgb=cv2.cvtColor(comp,cv2.COLOR_BGR2RGB); im=Image.fromarray(rgb); im.thumbnail((1120,600)); self.preview_photo=ImageTk.PhotoImage(im); self.preview_label.configure(image=self.preview_photo); self.status_var.set(f"Prévia · {renderer} · {sum(x.enabled for x in layers)} camadas")
+        except Exception as exc: messagebox.showerror("PixelFenda",self._format_error(exc,"Falha na prévia"))
+
+    # --------------------------------- queue ---------------------------------
+    def _queue_current(self):
+        inp=self.input_var.get().strip(); out=self.output_var.get().strip()
+        if not inp or not out: messagebox.showerror("PixelFenda","Defina entrada e saída primeiro."); return
+        self.jobs.append(RenderJob(inp,out,Path(inp).name)); self._refresh_queue()
+    def _queue_multiple(self):
+        paths=filedialog.askopenfilenames(title="Adicionar vídeos",filetypes=[("Vídeos","*.mp4 *.mov *.mkv *.avi *.webm *.m4v")]);
+        if not paths:return
+        outdir=Path(self.queue_dir_var.get().strip() or Path(paths[0]).parent); outdir.mkdir(parents=True,exist_ok=True)
+        for p in paths:
+            q=Path(p); out=outdir/f"{q.stem}_pixelfenda_v030.mp4"; self.jobs.append(RenderJob(str(q),str(out),q.name))
+        self._refresh_queue()
+    def _refresh_queue(self):
+        for x in self.queue_tree.get_children(): self.queue_tree.delete(x)
+        for i,j in enumerate(self.jobs): self.queue_tree.insert("","end",iid=str(i),values=(j.input_path,j.output_path))
+    def _queue_remove(self):
+        sel=self.queue_tree.selection()
+        if not sel:return
+        for i in sorted((int(x) for x in sel),reverse=True): del self.jobs[i]
+        self._refresh_queue()
+    def _queue_clear(self): self.jobs.clear(); self._refresh_queue()
+    def _start_queue(self):
+        if not self.jobs: messagebox.showinfo("PixelFenda","A fila está vazia."); return
+        if self.worker and self.worker.is_alive(): return
+        try:
+            doc=self._snapshot_project(); jobs=[RenderJob.from_dict(x.to_dict()) for x in self.jobs]
+            if doc.audio_mode in {"vocals_only", "instrumental_only"}:
+                raise ValueError("Modos de stem Demucs não são aplicados automaticamente à fila multi-vídeo. Use áudio original/silencioso/replace/mix ou renderize os stems individualmente.")
+        except Exception as exc: messagebox.showerror("PixelFenda",str(exc)); return
+        self.render_btn.configure(state="disabled"); self.progress["value"]=0
+        def work():
+            try:
+                results=[]
+                for idx,j in enumerate(jobs):
+                    info=probe_video(j.input_path); w,h=self._size_for_doc(doc,j.input_path,info)
+                    def prog(v,t,idx=idx): self.after(0,lambda:self._set_progress((idx+v)/len(jobs),f"Fila {idx+1}/{len(jobs)} · {t}"))
+                    results.append(render_video_layers(j.input_path,j.output_path,w,h,doc.layers,resize_mode=doc.resize_mode,seed=doc.seed,reactive_mode=doc.reactive_mode,scene_mode=doc.scene_mode,scene_threshold=doc.scene_threshold,audio_mode=doc.audio_mode,music_path=doc.music_path,stem_vocals_path=doc.stem_vocals_path,stem_instrumental_path=doc.stem_instrumental_path,encoder_mode=doc.encoder_mode,gpu_mode=doc.gpu_mode,progress=prog))
+                self.after(0,lambda:self._queue_done(results))
+            except Exception as exc:
+                detail=self._format_error(exc,"Render da fila"); self.after(0,lambda t=detail:self._failed(t))
+        self.worker=threading.Thread(target=work,daemon=True); self.worker.start()
+    def _queue_done(self,results): self.render_btn.configure(state="normal"); self.progress["value"]=100; self.status_var.set(f"Fila concluída · {len(results)} vídeos"); messagebox.showinfo("PixelFenda",f"Fila concluída: {len(results)} vídeos.")
+
+    # -------------------------------- render --------------------------------
+    def _size_for_doc(self,d:ProjectDocument,inp:str,info=None):
+        p=next((x for x in RESOLUTION_PRESETS if x.key==d.resolution),RESOLUTION_PRESETS[0])
+        if p.key=="original": info=info or probe_video(inp); return info.width,info.height
+        if p.key=="custom": return d.width,d.height
+        return int(p.width),int(p.height)
+    def _start_render(self):
+        if self.worker and self.worker.is_alive(): return
+        try:
+            doc=self._snapshot_project(); inp=doc.input_path; out=doc.output_path
+            if not inp or not os.path.isfile(inp): raise ValueError("Selecione um arquivo de vídeo válido.")
+            if not out: raise ValueError("Informe o arquivo de saída.")
+            w,h=self._size_for_doc(doc,inp)
+            if doc.audio_mode in {"replace","mix"} and (not doc.music_path or not os.path.isfile(doc.music_path)): raise ValueError("Selecione uma música/áudio válida.")
+            if doc.audio_mode=="vocals_only" and (not doc.stem_vocals_path or not os.path.isfile(doc.stem_vocals_path)): raise ValueError("Gere/selecione o stem de voz primeiro.")
+            if doc.audio_mode=="instrumental_only" and (not doc.stem_instrumental_path or not os.path.isfile(doc.stem_instrumental_path)): raise ValueError("Gere/selecione o stem instrumental primeiro.")
+        except Exception as exc: messagebox.showerror("PixelFenda",self._format_error(exc,"Validação antes do render")); return
+        self.render_btn.configure(state="disabled"); self.progress["value"]=0; self.status_var.set("Iniciando render por camadas…")
+        def prog(v,t): self.after(0,lambda:self._set_progress(v,t))
+        def work():
+            try:
+                r=render_video_layers(inp,out,w,h,doc.layers,resize_mode=doc.resize_mode,seed=doc.seed,reactive_mode=doc.reactive_mode,scene_mode=doc.scene_mode,scene_threshold=doc.scene_threshold,audio_mode=doc.audio_mode,music_path=doc.music_path,stem_vocals_path=doc.stem_vocals_path,stem_instrumental_path=doc.stem_instrumental_path,encoder_mode=doc.encoder_mode,gpu_mode=doc.gpu_mode,progress=prog)
+                self.after(0,lambda:self._done(r))
+            except Exception as exc:
+                detail=self._format_error(exc,"Falha durante a renderização"); self.after(0,lambda t=detail:self._failed(t))
+        self.worker=threading.Thread(target=work,daemon=True); self.worker.start()
+
+    def _format_error(self,exc:BaseException,context:str)->str:
+        msg=str(exc).strip() or repr(exc); detail=f"{type(exc).__name__}: {msg}"
+        try:
+            log=Path(__file__).resolve().parent.parent/"pixelfenda_error.log"; stamp=datetime.now().isoformat(timespec="seconds"); trace="".join(traceback.format_exception(type(exc),exc,exc.__traceback__)); log.open("a",encoding="utf-8").write(f"\n[{stamp}] {context}\n{trace}\n")
+        except Exception: pass
+        return detail
+    def _set_progress(self,v,t): self.progress["value"]=max(0,min(100,v*100)); self.status_var.set(t)
+    def _done(self,r): self.render_btn.configure(state="normal"); self.progress["value"]=100; self.status_var.set(f"Concluído · {r['encoder']} · {r['gpu_renderer']} · {r['active_layers']} camadas"); messagebox.showinfo("PixelFenda",f"Vídeo gerado com sucesso:\n{r['output']}")
+    def _failed(self,t): self.render_btn.configure(state="normal"); self.status_var.set("Falha."); messagebox.showerror("PixelFenda",t)
+
+
+def run_gui() -> None:
+    PixelFendaApp().mainloop()

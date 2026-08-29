@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 echo ========================================
-echo PixelFenda v0.2.0 - Instalacao Windows
+echo PixelFenda v0.3.0 - Instalacao Windows
 echo ========================================
 where py >nul 2>nul
 if %errorlevel%==0 (
@@ -25,6 +25,6 @@ pause
 exit /b 0
 :erro
 echo.
-echo Falha durante a instalacao. Verifique Python 3.11+ e internet.
+echo Falha durante a instalacao. Verifique Python 3.11+ (recomendado 3.13) e internet.
 pause
 exit /b 1

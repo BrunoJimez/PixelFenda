@@ -32,3 +32,10 @@ previews/
 *.mkv
 *.avi
 *.webm
+
+# PixelFenda v0.3 runtime
+pixelfenda_stems/
+queue_output/
+*_pixelfenda_v030.mp4
+_teste_v030_*
+*.pixelfenda.autosave.json

@@ -1,179 +1,284 @@
-# PixelFenda v0.2.1 — Video Mutation Studio
+# PixelFenda v0.3.0 — Layer Mutation Studio
 
-**PixelFenda** é um processador de vídeo autoral para glitch art, estética analógica/digital, filtros cinematográficos e mutação visual reativa. A v0.2.1 preserva todos os seis efeitos da v0.1.0 e transforma o programa em uma arquitetura com **Efeitos** e **Filtros** independentes.
+PixelFenda é um processador autoral de vídeo/glitch art. A v0.3.0 preserva a base validada da v0.2.1 (VRAM virtual persistente, 20 efeitos originais, 19 filtros, OpenGL/RTX, FFT/optical-flow e NVENC) e transforma o programa em uma **estação de mutação em camadas**.
 
-> PixelFenda não executa ROMs, não modifica jogos e não é uma cópia de Corrupted Souls. A família VRAM simula, sobre quadros de vídeo comuns, comportamentos estruturais inspirados em memória gráfica: framebuffer, páginas de textura, histórico temporal, erros de endereço, bitplanes e blits.
+## Destaques da v0.3.0
 
-## Novidades principais
+- **Layer Stack** com até 12 camadas na interface.
+- Camadas de **Efeito**, **Filtro** e **LUT `.cube`** na mesma pilha.
+- Intensidade e opacidade independentes por camada.
+- 9 modos de blend: Normal, Screen, Multiply, Add, Difference, Overlay, Soft Light, Lighten e Darken.
+- Modulação por camada: áudio, graves, médios, agudos, beat, movimento, corte de cena ou LFO.
+- **Auto Scene Mutator**: cria variações determinísticas de intensidade a cada corte.
+- Modo de **reset de memória temporal** nos cortes, útil para VRAM/feedback.
+- Detecção de cortes interna, sem dependência obrigatória adicional.
+- Projetos `.pixelfenda.json`: salve e recupere toda a pilha e configurações.
+- Fila de render para múltiplos vídeos usando a mesma pilha.
+- Prévia comparativa **ANTES / DEPOIS** em qualquer posição do vídeo.
+- Importação de LUTs 1D/3D no formato `.cube`.
+- 3 LUTs autorais incluídos: Cobalt Noir, Amber Crypt e Chrome Ice.
+- Integração opcional com **Demucs** para separar voz e instrumental localmente.
+- Áudio: original, sem áudio, substituir, mixar, somente voz ou somente instrumental.
+- Cinco novos efeitos autorais, também com rota GPU quando ModernGL estiver ativo:
+  - Cyber Wire
+  - Liquid Chrome
+  - PSX Dither
+  - Gothic Halo
+  - Signal Grid
+- Total da v0.3.0: **25 efeitos + 19 filtros + LUTs customizáveis**.
 
-- **VRAM virtual persistente real dentro do programa: 1024×512×16-bit**.
-- Áreas persistentes para framebuffer, texture page e history page; corrupções podem vazar de uma região para outra.
-- **20 efeitos**: seis preservados da v0.1.0 + 14 novos.
-- **19 filtros** incluindo Vintage, Cinematic, filme antigo frio, cinza/P&B e `Odisseia 70`.
-- Efeito e filtro podem ser ligados independentemente: efeito apenas, filtro apenas, ambos ou nenhum.
-- Reatividade: livre, movimento da cena, música/áudio ou ambos.
-- Análise de movimento por optical flow em baixa resolução.
-- Análise de áudio por FFT sem API paga e sem serviço online.
-- Áudio final: original, silencioso, substituir por música ou misturar música + original.
-- GPU opcional por **ModernGL/OpenGL fragment shaders**; fallback automático para CPU.
-- NVIDIA NVENC: H.264, H.265/HEVC e AV1 quando o FFmpeg/GPU suportarem.
-- Interface minimalista fria, redimensionável, com barra vertical e scroll do mouse.
-- Seed reproduzível.
-- Presets para TikTok, YouTube, Instagram/Reels/Feed e resolução personalizada.
+## Requisitos base
 
-## Efeitos
+- Windows 10/11 recomendado.
+- Python 3.11+; a bancada principal da v0.2.1 foi validada em Python 3.13 no computador do usuário.
+- NVIDIA RTX é opcional, mas recomendada.
+- FFmpeg.
 
-### VRAM / legado preservado
-1. VRAM Corrupted Memory
-2. VRAM Tile Storm
-3. VRAM Palette Collapse
-4. VRAM Address Shift
-5. VRAM Controlled Glitch
-6. VRAM Full Corruption
+Dependências Python básicas:
 
-### Novos
-7. ASCII Terminal
-8. Digital Rain
-9. Gothic Crimson
-10. Spectral Echo
-11. Pixel Sort
-12. Scanline Melt
-13. Chromatic VHS
-14. CRT Terminal
-15. Void Bloom
-16. Neon Noir
-17. Retro Space PC
-18. Datamosh Flow
-19. Recursive Feedback
-20. Brutalist Collage
-
-As referências enviadas em `efeitos.rar` foram tratadas como linguagem visual, não como material a ser embutido no software. O programa gera os efeitos proceduralmente.
-
-## Filtros
-
-- Vintage 70
-- Vintage 90
-- Cinematic Teal & Amber
-- Cold Archive
-- Silver Gray
-- Noir
-- **Odisseia 70 — inspirado em 65/70mm fotoquímico**
-- Bleach Bypass
-- Terminal Green
-- Gothic Iron
-- Y2K Chrome
-- Dream White
-- Neon Night
-- Space Blue
-- Antique Sepia
-- Social Cool
-- Muted Linen
-- Soft B&W
-- Infrared Ice
-
-`Odisseia 70` é uma interpretação autoral, não um LUT oficial do filme. A pesquisa da v0.2.0 usa como referência técnica o fato de *The Odyssey* (2026) ter sido fotografado integralmente em 15-perf IMAX 65mm, com KODAK VISION3 250D 5207 para dia e 500T 5219 para baixa luz/noite, e acabamento orientado por color timing fotoquímico. O preset traduz essas ideias em saturação contida, microgrão fino, highlights levemente quentes, sombras neutras/frias e bloom discreto.
-
-## Reatividade
-
-- **Livre:** o efeito segue sua própria dinâmica procedural.
-- **Movimento:** optical flow mede magnitude e direção aparente entre quadros; deslocamento, feedback e corrupção recebem esses valores.
-- **Áudio:** o áudio é decodificado pelo FFmpeg e analisado por FFT. São extraídas energia global, graves, médios, agudos e transientes/beat.
-- **Movimento + áudio:** combina os dois sinais.
-
-Quando uma nova música é escolhida, ela também pode ser a fonte da reatividade.
-
-## Áudio
-
-- **Manter áudio original**
-- **Vídeo sem áudio**
-- **Substituir por outra música/áudio** — a nova faixa é repetida se necessário e cortada na duração do vídeo.
-- **Misturar áudio original + nova música** — a faixa adicional entra com ganho reduzido.
-
-A v0.2.0 não faz separação neural de stems; portanto, “remover música preservando diálogo” não é prometido como recurso desta versão. O modo silencioso remove todo o áudio original.
-
-## GPU / RTX 4060
-
-A arquitetura possui dois usos diferentes da GPU:
-
-1. **Shaders OpenGL via ModernGL:** efeitos e color grading compatíveis são executados em fragment shaders. Isso usa a GPU gráfica diretamente, sem exigir uma compilação customizada do OpenCV CUDA.
-2. **NVENC via FFmpeg:** codificação de saída H.264, HEVC ou AV1 quando disponível.
-
-Efeitos que dependem de operações de memória específicas ou algoritmos particulares podem continuar na CPU (por exemplo VRAM procedural, Pixel Sort e Datamosh Flow), enquanto o filtro pode ser executado na GPU no mesmo pipeline.
-
-Execute `diagnostico_gpu.py` para verificar OpenGL e os encoders NVENC.
-
-## Instalação Windows
-
-1. Instale Python 3.11 ou superior.
-2. Extraia o pacote.
-3. Execute `install_windows.bat` uma vez.
-4. Execute `run_windows.bat`.
-5. Selecione o vídeo, resolução, efeito/filtro, reatividade, áudio e encoder.
-6. Use **Prévia** antes do render completo.
-7. Clique em **GERAR VÍDEO**.
-
-Recomenda-se driver NVIDIA Studio atualizado para trabalhos longos de criação.
-
-## CLI
-
-VRAM + filtro frio + movimento:
-
-```powershell
-python pixelfenda.py --cli -i entrada.mp4 -o saida.mp4 --effect corrupted_memory --effect-intensity 78 --filter cold_archive --filter-intensity 65 --reactive motion
+```text
+numpy>=2.0,<3
+opencv-python>=4.10,<5
+Pillow>=10.4,<13
+imageio-ffmpeg>=0.6,<1
+moderngl>=5.12,<6
+glcontext>=3.0,<4
 ```
 
-Apenas filtro Odisseia 70, sem efeito:
+Demucs/PyTorch **não** fazem parte das dependências básicas.
 
-```powershell
-python pixelfenda.py --cli -i entrada.mp4 --no-effect --filter odyssey_70 --filter-intensity 90
+## Instalação rápida no Windows
+
+Extraia a pasta e execute:
+
+```text
+install_windows.bat
 ```
 
-Efeito reativo a uma música substituta:
+Depois:
 
-```powershell
-python pixelfenda.py --cli -i entrada.mp4 --effect spectral_echo --reactive audio --audio-mode replace --music musica.wav
+```text
+run_windows.bat
 ```
 
-AV1 NVENC em uma RTX 40:
+Ou manualmente:
 
 ```powershell
-python pixelfenda.py --cli -i entrada.mp4 --effect neon_noir --encoder av1_nvenc --gpu gpu
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python .\pixelfenda.py
 ```
 
-## Resoluções
+## Autoteste v0.3.0
 
-- Original
-- TikTok / Shorts / Reels: 1080×1920
-- YouTube: 1920×1080
-- Instagram Reels/Stories: 1080×1920
-- Instagram Feed 1:1: 1080×1080
-- Instagram Feed 4:5: 1080×1350
-- Instagram horizontal 16:9: 1920×1080
-- Instagram Feed 1.91:1: 1080×566
-- Personalizada
+Antes do primeiro render grande:
 
-## Documentação incluída
+```powershell
+python .\teste_v030.py
+```
 
-- `ANALISE_ANEXOS_v0.2.0.md` — leitura das referências enviadas.
-- `PESQUISA_EFEITOS_FILTROS_v0.2.0.md` — pesquisa técnica e decisões de arquitetura.
-- `ANALISE_REFERENCIA.md` — documentação da referência inicial da v0.1.0.
-- `VALIDACAO_v0.2.0.md` — testes executados e limitações conhecidas da bancada.
-- `TESTE_VISUAL_EFEITOS_v0.2.0.jpg` e `TESTE_VISUAL_FILTROS_v0.2.0.jpg` — matrizes visuais autorais de validação.
-- `CHANGELOG.md` — evolução do programa.
+O autoteste verifica:
+
+- projeto JSON;
+- LUT `.cube` 3D;
+- detecção de corte;
+- Layer Stack CPU;
+- rota gráfica OpenGL quando disponível;
+- todos os 25 efeitos;
+- todos os 19 filtros;
+- H.264/HEVC/AV1 NVENC.
+
+A v0.3.0 foi validada fisicamente em uma RTX 4060: o autoteste retornou renderer `NVIDIA GeForce RTX 4060/PCIe/SSE2`, Layer Stack GPU OK e `h264_nvenc`, `hevc_nvenc` e `av1_nvenc` como `OK`.
+
+## Como usar a pilha de camadas
+
+A aba **Camadas** é processada de cima para baixo. Exemplo:
+
+1. `VRAM Corrupted Memory` — 55%
+2. `Cyber Wire` — Screen, 42%
+3. `Cold Archive` — 65%
+4. LUT `Cobalt Noir` — 35%
+
+Cada camada possui:
+
+- `Ativa`;
+- tipo;
+- preset/LUT;
+- intensidade;
+- opacidade/mix;
+- blend;
+- fonte de modulação;
+- força da modulação;
+- opção de reset de memória em cortes;
+- nome opcional.
+
+### Intensidade x Opacidade
+
+**Intensidade** altera a força interna do efeito/filtro. **Opacidade** define quanto o resultado daquela camada entra na composição final. Isso permite, por exemplo, um efeito internamente agressivo com apenas 20% de presença na imagem final.
+
+## Modulação por camada
+
+Fontes disponíveis:
+
+- Sem modulação
+- Energia do áudio
+- Graves
+- Médios
+- Agudos
+- Batida/transiente
+- Movimento da cena
+- Pulso de corte de cena
+- LFO lento
+
+A análise necessária é ativada automaticamente quando uma camada pede determinada fonte. Assim, mesmo que a reatividade global esteja em `Livre`, uma camada configurada como `Beat` continuará recebendo análise FFT.
+
+## Automação por cena
+
+Quatro modos:
+
+- **Desligado** — nenhuma automação global de cena.
+- **Pulso nos cortes** — reforço curto da intensidade ao detectar corte.
+- **Resetar memória/feedback** — reinicia estados temporais nos cortes.
+- **Auto Scene Mutator** — cria novos ganhos determinísticos por camada a cada cena, preservando a ordem da pilha.
+
+A aba Automação também permite executar uma análise prévia e listar os tempos dos cortes detectados.
+
+## LUT `.cube`
+
+A v0.3.0 aceita:
+
+- `LUT_1D_SIZE`
+- `LUT_3D_SIZE`
+- `DOMAIN_MIN`
+- `DOMAIN_MAX`
+
+LUTs 3D usam interpolação trilinear em blocos de linhas para controlar o uso de memória. Na v0.3.0, LUTs customizadas usam uma rota CPU compatível; os demais efeitos/filtros continuam podendo usar OpenGL/RTX.
+
+LUTs autorais da distribuição (a distribuição pode incluir os `.cube`; o código-fonte também os reconstrói deterministicamente na primeira utilização):
+
+- `PixelFenda_CobaltNoir.cube`
+- `PixelFenda_AmberCrypt.cube`
+- `PixelFenda_ChromeIce.cube`
+
+## Áudio e separação de stems
+
+Os modos normais continuam disponíveis:
+
+- Manter áudio original
+- Vídeo sem áudio
+- Substituir por música/áudio
+- Misturar original + nova música
+
+A v0.3.0 adiciona:
+
+- Somente voz
+- Sem voz / instrumental
+
+Esses dois modos dependem de stems gerados previamente com Demucs.
+
+### Demucs opcional
+
+Execute:
+
+```text
+install_demucs_optional.bat
+```
+
+Esse instalador cria `.venv_demucs` separado da instalação principal. Isso evita tornar o PixelFenda dependente de PyTorch para quem não usa separação de áudio.
+
+Depois verifique:
+
+```powershell
+python .\demucs_status.py
+```
+
+A interface chama o Demucs localmente. Nenhuma API paga é usada. A disponibilidade de CUDA depende da versão do PyTorch instalada no ambiente Demucs.
+
+## Fila de render
+
+A aba **Fila** permite:
+
+- adicionar o trabalho atual;
+- selecionar vários vídeos de uma vez;
+- escolher uma pasta de saída;
+- renderizar todos sequencialmente usando o projeto/pilha atual.
+
+Por segurança, os modos `Somente voz` e `Instrumental` não são aplicados automaticamente à fila multi-vídeo, pois cada vídeo exige seus próprios stems.
+
+## Projeto `.pixelfenda.json`
+
+O projeto salva:
+
+- resolução/enquadramento;
+- encoder;
+- modo GPU;
+- seed;
+- reatividade;
+- automação de cena;
+- áudio;
+- caminhos de stems;
+- todas as camadas e sua ordem.
+
+Há um exemplo em:
+
+```text
+presets/Projeto_Gothic_Layered.pixelfenda.json
+```
+
+## Linha de comando
+
+### Projeto completo
+
+```powershell
+python .\pixelfenda.py --cli --project .\meu_projeto.pixelfenda.json -i entrada.mp4 -o saida.mp4
+```
+
+### Compatibilidade simples estilo v0.2
+
+```powershell
+python .\pixelfenda.py --cli -i entrada.mp4 -o saida.mp4 --effect cyber_wire --filter cold_archive --reactive both --scene-mode mutate
+```
+
+### Detectar cenas
+
+```powershell
+python .\pixelfenda.py --cli -i entrada.mp4 --analyze-scenes --scene-threshold 0.22
+```
+
+## Compatibilidade v0.2.1
+
+A v0.3.0 preserva:
+
+- VRAM 1024×512×16-bit;
+- seis efeitos VRAM originais;
+- efeitos CPU/OpenGL da v0.2;
+- 19 filtros;
+- optical flow Farneback;
+- FFT de áudio;
+- H.264/HEVC/AV1 NVENC;
+- fallback CPU;
+- scroll e interface ajustável;
+- correção de uniforms GLSL otimizados;
+- diagnóstico GPU/NVENC.
+
+## Observações sobre GPU
+
+A RTX é usada em duas áreas independentes:
+
+1. **OpenGL/ModernGL** para shaders de efeitos/filtros.
+2. **NVENC** para codificação de vídeo.
+
+LUT customizada e alguns efeitos estruturais/VRAM continuam usando CPU por desenho. Em uma pilha mista, o programa combina os dois backends.
+
+## Pesquisa técnica da v0.3.0
+
+Veja:
+
+```text
+docs/research/PESQUISA_v0.3.0.md
+```
 
 ## Licença
 
 MIT. Consulte `LICENSE`.
-
-## Validação de hardware — v0.2.1
-
-A v0.2.1 foi validada em hardware real com **NVIDIA GeForce RTX 4060 8 GB / Windows 10**. O autoteste confirmou:
-
-- ModernGL/OpenGL na RTX 4060;
-- VRAM Corrupted Memory + filtro simultaneamente;
-- shader GPU + filtro simultaneamente;
-- H.264 NVENC;
-- HEVC/H.265 NVENC;
-- AV1 NVENC.
-
-Além do autoteste, um render completo com **efeito + filtro** foi concluído com sucesso. Para reproduzir a bancada, execute `python .\\teste_hotfix_v021.py` dentro do ambiente virtual.
