@@ -6,65 +6,37 @@ import json
 from pixelfenda.app import run_gui
 from pixelfenda.engine import probe_video, render_video
 from pixelfenda.ffmpeg_utils import make_output_path
-from pixelfenda.presets import RESOLUTION_BY_KEY
+from pixelfenda.presets import EFFECT_PRESETS, FILTER_PRESETS, RESOLUTION_BY_KEY
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="PixelFenda v0.1.0 — VRAM-inspired glitch video engine")
-    parser.add_argument("--cli", action="store_true", help="Executa em modo linha de comando")
-    parser.add_argument("-i", "--input")
-    parser.add_argument("-o", "--output")
-    parser.add_argument("--resolution", default="original", choices=list(RESOLUTION_BY_KEY))
-    parser.add_argument("--width", type=int)
-    parser.add_argument("--height", type=int)
-    parser.add_argument("--resize", default="crop", choices=["crop", "fit", "stretch"])
-    parser.add_argument("--effect", default="corrupted_memory", choices=["corrupted_memory", "tile_storm", "palette_collapse", "address_shift", "controlled", "full_corruption"])
-    parser.add_argument("--intensity", type=float, default=72.0, help="0 a 100")
-    parser.add_argument("--seed", type=int, default=1337)
-    parser.add_argument("--encoder", default="auto", choices=["auto", "cpu", "nvenc"])
-    parser.add_argument("--no-audio", action="store_true")
-    parser.add_argument("--max-seconds", type=float, default=None, help="Útil para testes/preview")
-    args = parser.parse_args()
+    p=argparse.ArgumentParser(description="PixelFenda v0.2.1 — Video Mutation Studio")
+    p.add_argument("--cli",action="store_true")
+    p.add_argument("-i","--input"); p.add_argument("-o","--output")
+    p.add_argument("--resolution",default="original",choices=list(RESOLUTION_BY_KEY)); p.add_argument("--width",type=int); p.add_argument("--height",type=int)
+    p.add_argument("--resize",default="crop",choices=["crop","fit","stretch"])
+    p.add_argument("--no-effect",action="store_true"); p.add_argument("--effect",default="corrupted_memory",choices=list(EFFECT_PRESETS)); p.add_argument("--effect-intensity",type=float,default=72)
+    p.add_argument("--filter",default="none",choices=list(FILTER_PRESETS)); p.add_argument("--filter-intensity",type=float,default=100)
+    p.add_argument("--reactive",default="none",choices=["none","motion","audio","both"])
+    p.add_argument("--audio-mode",default="original",choices=["original","silent","replace","mix"]); p.add_argument("--music")
+    p.add_argument("--seed",type=int,default=1337); p.add_argument("--encoder",default="auto",choices=["auto","cpu_h264","h264_nvenc","hevc_nvenc","av1_nvenc"])
+    p.add_argument("--gpu",default="auto",choices=["auto","gpu","cpu"]); p.add_argument("--max-seconds",type=float)
+    a=p.parse_args()
+    if not a.cli: run_gui(); return
+    if not a.input: p.error("--input é obrigatório no modo CLI")
+    info=probe_video(a.input); rp=RESOLUTION_BY_KEY[a.resolution]
+    if a.resolution=="original": w,h=info.width,info.height
+    elif a.resolution=="custom":
+        if not a.width or not a.height: p.error("--width/--height são obrigatórios com custom")
+        w,h=a.width,a.height
+    else: w,h=int(rp.width),int(rp.height)
+    apply_filter=a.filter!="none"
+    tag=a.effect if not a.no_effect else (a.filter if apply_filter else "convert")
+    out=a.output or make_output_path(a.input,tag)
+    def prog(v,t): print(f"[{v*100:6.2f}%] {t}",flush=True)
+    r=render_video(a.input,out,w,h,resize_mode=a.resize,apply_effect=not a.no_effect,effect_preset=a.effect,effect_intensity=max(0,min(100,a.effect_intensity))/100,
+        apply_filter=apply_filter,filter_preset=a.filter,filter_intensity=max(0,min(100,a.filter_intensity))/100,seed=a.seed,reactive_mode=a.reactive,
+        audio_mode=a.audio_mode,music_path=a.music,encoder_mode=a.encoder,gpu_mode=a.gpu,max_seconds=a.max_seconds,progress=prog)
+    print(json.dumps(r,ensure_ascii=False,indent=2))
 
-    if not args.cli:
-        run_gui()
-        return
-    if not args.input:
-        parser.error("--input é obrigatório no modo CLI")
-
-    info = probe_video(args.input)
-    preset = RESOLUTION_BY_KEY[args.resolution]
-    if args.resolution == "original":
-        w, h = info.width, info.height
-    elif args.resolution == "custom":
-        if not args.width or not args.height:
-            parser.error("--width e --height são obrigatórios para --resolution custom")
-        w, h = args.width, args.height
-    else:
-        assert preset.width is not None and preset.height is not None
-        w, h = preset.width, preset.height
-
-    output = args.output or make_output_path(args.input, args.effect)
-
-    def progress(v: float, text: str) -> None:
-        print(f"[{v*100:6.2f}%] {text}", flush=True)
-
-    result = render_video(
-        args.input,
-        output,
-        w,
-        h,
-        resize_mode=args.resize,
-        effect_preset=args.effect,
-        intensity=max(0.0, min(100.0, args.intensity)) / 100.0,
-        seed=args.seed,
-        preserve_audio=not args.no_audio,
-        encoder_mode=args.encoder,
-        max_seconds=args.max_seconds,
-        progress=progress,
-    )
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-
-
-if __name__ == "__main__":
-    main()
+if __name__=="__main__": main()

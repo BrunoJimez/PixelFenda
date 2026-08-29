@@ -22,21 +22,66 @@ RESOLUTION_PRESETS = [
     ResolutionPreset("instagram_landscape", "Instagram Feed paisagem — 1.91:1 (1080×566)", 1080, 566),
     ResolutionPreset("custom", "Resolução personalizada", None, None),
 ]
-
 RESOLUTION_BY_KEY = {p.key: p for p in RESOLUTION_PRESETS}
 RESOLUTION_BY_LABEL = {p.label: p for p in RESOLUTION_PRESETS}
 
 
+# Os seis primeiros são preservados da v0.1.0. Os demais foram derivados das
+# referências enviadas pelo usuário e de famílias clássicas de glitch/video art.
 EFFECT_PRESETS = {
-    "corrupted_memory": "Corrupted Memory — mistura dinâmica (recomendado)",
-    "tile_storm": "Tile Storm — repetição/mosaico de blocos",
-    "palette_collapse": "Palette Collapse — saturação e bitplanes",
-    "address_shift": "Address Shift — rasgos, stride e deslocamentos",
-    "controlled": "Controlled Glitch — mais legível e menos destrutivo",
-    "full_corruption": "Full Corruption — máximo caos visual",
+    "corrupted_memory": "VRAM Corrupted Memory — clássico v0.1",
+    "tile_storm": "VRAM Tile Storm — blocos e páginas de textura",
+    "palette_collapse": "VRAM Palette Collapse — bitplanes/paleta",
+    "address_shift": "VRAM Address Shift — stride/tearing",
+    "controlled": "VRAM Controlled Glitch — legível",
+    "full_corruption": "VRAM Full Corruption — caos máximo",
+    "ascii_terminal": "ASCII Terminal — raster/terminal 90s",
+    "digital_rain": "Digital Rain — chuva de código verde",
+    "gothic_crimson": "Gothic Crimson — trevas, aço e carmim",
+    "spectral_echo": "Spectral Echo — rastros e persistência",
+    "pixel_sort": "Pixel Sort — derretimento por luminância",
+    "scanline_melt": "Scanline Melt — linhas deslocadas/slit-scan",
+    "chromatic_vhs": "Chromatic VHS — fita, RGB split e jitter",
+    "crt_terminal": "CRT Terminal — fósforo, scanlines e curvatura",
+    "void_bloom": "Void Bloom — silhueta + halo luminoso",
+    "neon_noir": "Neon Noir — noite elétrica e bordas luminosas",
+    "retro_space": "Retro Space PC — sci-fi 90s / dithering",
+    "datamosh_flow": "Datamosh Flow — macroblocos guiados por movimento",
+    "recursive_feedback": "Recursive Feedback — eco recursivo de vídeo",
+    "brutalist_collage": "Brutalist Collage — recortes, zooms e arquitetura",
+}
+EFFECT_BY_LABEL = {v: k for k, v in EFFECT_PRESETS.items()}
+VRAM_EFFECTS = {
+    "corrupted_memory", "tile_storm", "palette_collapse", "address_shift", "controlled", "full_corruption"
+}
+GPU_EFFECTS = {
+    "ascii_terminal", "digital_rain", "gothic_crimson", "spectral_echo", "scanline_melt",
+    "chromatic_vhs", "crt_terminal", "void_bloom", "neon_noir", "retro_space", "recursive_feedback"
 }
 
-EFFECT_BY_LABEL = {v: k for k, v in EFFECT_PRESETS.items()}
+FILTER_PRESETS = {
+    "none": "Sem filtro",
+    "vintage_70": "Vintage 70 — quente, desbotado e granulado",
+    "vintage_90": "Vintage 90 — verde/magenta e fita fotográfica",
+    "cinematic_teal_amber": "Cinematic — teal & amber",
+    "cold_archive": "Cold Archive — filme antigo frio",
+    "silver_gray": "Silver Gray — cinza cinematográfico",
+    "noir": "Noir — P&B de alto contraste",
+    "odyssey_70": "Odisseia 70 — inspirado em 65/70mm fotoquímico",
+    "bleach_bypass": "Bleach Bypass — prata, contraste e baixa saturação",
+    "matrix_green": "Terminal Green — verde digital",
+    "gothic_iron": "Gothic Iron — aço frio e vermelho profundo",
+    "y2k_chrome": "Y2K Chrome — branco, prata e ciano",
+    "dream_white": "Dream White — high-key etéreo",
+    "neon_night": "Neon Night — azul/ciano noturno",
+    "space_blue": "Space Blue — sci-fi PC 90s",
+    "antique_sepia": "Antique Sepia — película envelhecida",
+    "social_cool": "Social Cool — contraste frio moderno",
+    "muted_linen": "Muted Linen — fosco e pouco saturado",
+    "soft_bw": "Soft B&W — preto e branco suave",
+    "infrared_ice": "Infrared Ice — negativo frio/ultravioleta",
+}
+FILTER_BY_LABEL = {v: k for k, v in FILTER_PRESETS.items()}
 
 RESIZE_MODES = {
     "crop": "Preencher e recortar (crop)",
@@ -46,8 +91,33 @@ RESIZE_MODES = {
 RESIZE_BY_LABEL = {v: k for k, v in RESIZE_MODES.items()}
 
 ENCODER_MODES = {
-    "auto": "Automático (NVENC se disponível)",
-    "cpu": "CPU — H.264 libx264",
-    "nvenc": "NVIDIA NVENC — H.264",
+    "auto": "Automático — H.264 NVENC se disponível",
+    "cpu_h264": "CPU — H.264 libx264",
+    "h264_nvenc": "NVIDIA NVENC — H.264",
+    "hevc_nvenc": "NVIDIA NVENC — H.265/HEVC",
+    "av1_nvenc": "NVIDIA NVENC — AV1 (RTX 40+)",
 }
 ENCODER_BY_LABEL = {v: k for k, v in ENCODER_MODES.items()}
+
+GPU_MODES = {
+    "auto": "Automático — GPU OpenGL se disponível",
+    "gpu": "Forçar GPU — OpenGL/RTX",
+    "cpu": "Forçar CPU",
+}
+GPU_BY_LABEL = {v: k for k, v in GPU_MODES.items()}
+
+REACTIVE_MODES = {
+    "none": "Livre / não reativo",
+    "motion": "Reagir ao movimento da cena",
+    "audio": "Reagir à música/áudio",
+    "both": "Movimento + música/áudio",
+}
+REACTIVE_BY_LABEL = {v: k for k, v in REACTIVE_MODES.items()}
+
+AUDIO_MODES = {
+    "original": "Manter áudio original",
+    "silent": "Vídeo sem áudio",
+    "replace": "Substituir por outra música/áudio",
+    "mix": "Misturar áudio original + nova música",
+}
+AUDIO_BY_LABEL = {v: k for k, v in AUDIO_MODES.items()}
