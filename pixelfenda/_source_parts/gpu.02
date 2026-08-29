@@ -1,0 +1,27 @@
+,1.0)))
+        self._set_uniform("u_filter_strength", float(np.clip(filter_strength,0.0,1.0)))
+        self._set_uniform("u_time", float(time_seconds if time_seconds is not None else self.frame_index/max(1.0,fps)))
+        self._set_uniform("u_audio", float(r.audio))
+        self._set_uniform("u_bass", float(r.bass))
+        self._set_uniform("u_treble", float(r.treble))
+        self._set_uniform("u_motion", float(r.motion))
+        self._set_uniform("u_dx", float(r.motion_dx))
+        self._set_uniform("u_dy", float(r.motion_dy))
+        self.fbo.use(); self.ctx.viewport=(0,0,self.width,self.height)
+        self.vao.render(mode=self.moderngl.TRIANGLE_STRIP)
+        raw=self.fbo.read(components=3,alignment=1)
+        arr=np.frombuffer(raw,np.uint8).reshape(self.height,self.width,3)
+        arr=np.flipud(arr).copy()
+        self.prev.write(np.flipud(arr).copy().tobytes())
+        return cv2.cvtColor(arr,cv2.COLOR_RGB2BGR)
+
+    def release(self) -> None:
+        for obj in (self.fbo,self.output,self.prev,self.tex,self.vao,self.vbo,self.program):
+            try: obj.release()
+            except Exception: pass
+        try: self.ctx.release()
+        except Exception: pass
+
+
+def create_gpu_pipeline(width: int, height: int, seed: int = 1337) -> GPUPipeline:
+    return GPUPipeline(width,height,seed)

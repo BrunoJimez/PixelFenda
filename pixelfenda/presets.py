@@ -49,6 +49,11 @@ EFFECT_PRESETS = {
     "datamosh_flow": "Datamosh Flow — macroblocos guiados por movimento",
     "recursive_feedback": "Recursive Feedback — eco recursivo de vídeo",
     "brutalist_collage": "Brutalist Collage — recortes, zooms e arquitetura",
+    "cyber_wire": "Cyber Wire — wireframe ciano/magenta",
+    "liquid_chrome": "Liquid Chrome — metal líquido digital",
+    "psx_dither": "PSX Dither — 15-bit, pixels e dithering",
+    "gothic_halo": "Gothic Halo — silhueta, halo e carmim",
+    "signal_grid": "Signal Grid — grade de sinal e blocos",
 }
 EFFECT_BY_LABEL = {v: k for k, v in EFFECT_PRESETS.items()}
 VRAM_EFFECTS = {
@@ -56,7 +61,8 @@ VRAM_EFFECTS = {
 }
 GPU_EFFECTS = {
     "ascii_terminal", "digital_rain", "gothic_crimson", "spectral_echo", "scanline_melt",
-    "chromatic_vhs", "crt_terminal", "void_bloom", "neon_noir", "retro_space", "recursive_feedback"
+    "chromatic_vhs", "crt_terminal", "void_bloom", "neon_noir", "retro_space", "recursive_feedback",
+    "cyber_wire", "liquid_chrome", "psx_dither", "gothic_halo", "signal_grid"
 }
 
 FILTER_PRESETS = {
@@ -119,5 +125,7 @@ AUDIO_MODES = {
     "silent": "Vídeo sem áudio",
     "replace": "Substituir por outra música/áudio",
     "mix": "Misturar áudio original + nova música",
+    "vocals_only": "Somente voz — stem Demucs opcional",
+    "instrumental_only": "Sem voz / instrumental — stem Demucs opcional",
 }
 AUDIO_BY_LABEL = {v: k for k, v in AUDIO_MODES.items()}
