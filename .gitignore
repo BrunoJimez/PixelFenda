@@ -39,3 +39,7 @@ queue_output/
 *_pixelfenda_v030.mp4
 _teste_v030_*
 *.pixelfenda.autosave.json
+
+# PixelFenda v0.4 runtime
+*_pixelfenda_v040.mp4
+_teste_v040_*

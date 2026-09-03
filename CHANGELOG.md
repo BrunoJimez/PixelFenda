@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.4.0 — Temporal Director
+
+### Tempo
+- Janela start/end por camada.
+- Fade in/out por camada.
+- Keyframes de intensidade, opacidade e modulação.
+- Interpolação Linear, Smoothstep, Ease In, Ease Out e Hold.
+
+### Máscaras e tracking
+- Máscara Full, Rectangle, Ellipse, Linear e Vignette.
+- Feather, inversão, centro, escala e ângulo.
+- Tracking opcional do centro de retângulo/elipse por goodFeaturesToTrack + Lucas–Kanade PyrLK.
+- Máscara integrada aos 9 blend modes.
+
+### Música
+- Beat Grid baseado no canal de transientes/FFT existente.
+- Estimativa leve de BPM.
+- Geração automática de pulsos de intensidade como keyframes editáveis.
+
+### Projeto/UI
+- Formato de projeto sobe para v4; projetos v3 continuam compatíveis.
+- Nova aba Tempo & Máscara.
+- Prévia respeita a posição temporal escolhida.
+- Fila passa a nomear saídas automáticas com sufixo `v040`.
+
+### Efeitos
+- Adiciona Temporal Shred, Prism Rift, Edge Strobe, Data Bloom e Motion Tunnel.
+- Total: 30 efeitos.
+
+### Compatibilidade
+- Preserva os 25 efeitos anteriores, 19 filtros, VRAM 1024×512, LUTs, scene automation, Demucs opcional, fila, OpenGL e NVENC.
+- Nenhuma nova dependência Python obrigatória.
+
+### Validação de desenvolvimento
+- Projeto v4 roundtrip: OK.
+- Keyframes/fades: OK.
+- Máscara feather: OK.
+- Tracking sintético: OK.
+- Beat Grid sintético 120 BPM: OK.
+- Stack CPU temporal + máscara: OK.
+- Render real 45 quadros: OK.
+- **Hardware validated:** NVIDIA GeForce RTX 4060/PCIe/SSE2; Layer Stack GPU + máscara + feedback + filtro OK; H.264/HEVC/AV1 NVENC OK.
+
 ## v0.3.0 — Layer Mutation Studio
 
 ### Arquitetura
@@ -33,7 +76,7 @@
   - PSX Dither
   - Gothic Halo
   - Signal Grid
-- Total: 25 efeitos.
+- Total na v0.3.0: 25 efeitos.
 
 ### Filtros e LUT
 - Preserva 19 filtros.

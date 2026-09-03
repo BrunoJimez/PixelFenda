@@ -1,283 +1,167 @@
-# PixelFenda v0.3.0 — Layer Mutation Studio
+# PixelFenda v0.4.0 — Temporal Director
 
-PixelFenda é um processador autoral de vídeo/glitch art. A v0.3.0 preserva a base validada da v0.2.1 (VRAM virtual persistente, 20 efeitos originais, 19 filtros, OpenGL/RTX, FFT/optical-flow e NVENC) e transforma o programa em uma **estação de mutação em camadas**.
+**PixelFenda** é um processador autoral de vídeo/glitch art. A v0.4.0 é **Stable / Hardware Validated** em NVIDIA GeForce RTX 4060 e acrescenta direção temporal e espacial por camada: keyframes, janelas de tempo, fades, máscaras, tracking e Beat Grid.
 
-## Destaques da v0.3.0
+> A família VRAM continua sendo uma simulação artística de memória gráfica sobre vídeo comum; PixelFenda não executa ROMs e não depende de um emulador de PlayStation.
 
-- **Layer Stack** com até 12 camadas na interface.
-- Camadas de **Efeito**, **Filtro** e **LUT `.cube`** na mesma pilha.
-- Intensidade e opacidade independentes por camada.
-- 9 modos de blend: Normal, Screen, Multiply, Add, Difference, Overlay, Soft Light, Lighten e Darken.
-- Modulação por camada: áudio, graves, médios, agudos, beat, movimento, corte de cena ou LFO.
-- **Auto Scene Mutator**: cria variações determinísticas de intensidade a cada corte.
-- Modo de **reset de memória temporal** nos cortes, útil para VRAM/feedback.
-- Detecção de cortes interna, sem dependência obrigatória adicional.
-- Projetos `.pixelfenda.json`: salve e recupere toda a pilha e configurações.
-- Fila de render para múltiplos vídeos usando a mesma pilha.
-- Prévia comparativa **ANTES / DEPOIS** em qualquer posição do vídeo.
-- Importação de LUTs 1D/3D no formato `.cube`.
-- 3 LUTs autorais incluídos: Cobalt Noir, Amber Crypt e Chrome Ice.
-- Integração opcional com **Demucs** para separar voz e instrumental localmente.
-- Áudio: original, sem áudio, substituir, mixar, somente voz ou somente instrumental.
-- Cinco novos efeitos autorais, também com rota GPU quando ModernGL estiver ativo:
-  - Cyber Wire
-  - Liquid Chrome
-  - PSX Dither
-  - Gothic Halo
-  - Signal Grid
-- Total da v0.3.0: **25 efeitos + 19 filtros + LUTs customizáveis**.
+## Novidades da v0.4.0
 
-## Requisitos base
+### Temporal Director
+Cada camada pode definir:
+- início e fim em segundos;
+- fade in / fade out;
+- keyframes de **intensidade**;
+- keyframes de **opacidade**;
+- keyframes de **força de modulação**;
+- interpolação Linear, Smooth, Ease In, Ease Out ou Hold.
 
-- Windows 10/11 recomendado.
-- Python 3.11+; a bancada principal da v0.2.1 foi validada em Python 3.13 no computador do usuário.
-- NVIDIA RTX é opcional, mas recomendada.
-- FFmpeg.
+Uma camada pode, por exemplo, existir somente de 12.5 s a 18.0 s, entrar suavemente em 0.6 s, atingir 100% de intensidade no refrão e desaparecer no corte seguinte.
 
-Dependências Python básicas:
+### Máscaras por camada
+Modos:
+- Tela inteira;
+- Retângulo;
+- Elipse;
+- Gradiente linear;
+- Vinheta / centro.
 
-```text
-numpy>=2.0,<3
-opencv-python>=4.10,<5
-Pillow>=10.4,<13
-imageio-ffmpeg>=0.6,<1
-moderngl>=5.12,<6
-glcontext>=3.0,<4
-```
+Parâmetros: centro X/Y, largura, altura, feather, ângulo e inversão. A máscara é aplicada ao resultado da camada e respeita os blend modes da v0.3.
 
-Demucs/PyTorch **não** fazem parte das dependências básicas.
+### Tracking local
+Retângulos e elipses podem acompanhar movimento. O tracking usa pontos Shi–Tomasi + optical flow Lucas–Kanade piramidal (`goodFeaturesToTrack` + `calcOpticalFlowPyrLK`). Não há modelo neural obrigatório.
 
-## Instalação rápida no Windows
+### Beat Grid
+O PixelFenda transforma o canal de transientes FFT em uma grade de batidas, estima BPM e pode gerar automaticamente pulsos de intensidade nos keyframes. O resultado fica salvo no projeto e pode ser editado manualmente.
 
-Extraia a pasta e execute:
+### Novos efeitos autorais v0.4
+Além dos 25 efeitos da v0.3, entram cinco famílias temporais/espaciais:
+- **Temporal Shred** — tiras de memória entre o frame atual e histórico;
+- **Prism Rift** — fratura RGB radial sensível a movimento/beat;
+- **Edge Strobe** — bordas pulsadas por beat/agudos;
+- **Data Bloom** — highlights digitais, bloom e deslocamento de blocos;
+- **Motion Tunnel** — feedback/zoom temporal dirigido pelo movimento.
 
-```text
-install_windows.bat
-```
+Esses cinco efeitos possuem fallback CPU nesta versão. Eles podem coexistir com filtros e efeitos GPU na mesma pilha; a RTX continua sendo usada nas camadas OpenGL compatíveis e na codificação NVENC.
 
-Depois:
+### Compatibilidade preservada
+- 30 efeitos;
+- 19 filtros;
+- VRAM virtual persistente 1024×512×16-bit;
+- Layer Stack de até 12 camadas;
+- 9 blend modes;
+- LUT `.cube` 1D/3D;
+- scene detector e Auto Scene Mutator;
+- FFT e optical flow;
+- Demucs opcional;
+- fila de render;
+- H.264 / HEVC / AV1 NVENC;
+- ModernGL/OpenGL com fallback CPU.
 
-```text
-run_windows.bat
-```
+## Status da versão
 
-Ou manualmente:
+**v0.4.0 — Stable / Hardware Validated.** Validada com Layer Stack temporal, máscara, tracking, feedback, filtro e ModernGL/OpenGL na NVIDIA GeForce RTX 4060, além de H.264/HEVC/AV1 NVENC.
+
+## Instalação Windows
+
+Recomendado: Python 3.13 x64 e driver NVIDIA atualizado.
 
 ```powershell
+cd C:\caminho\PixelFenda_v0_4_0
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+```
+
+Ou execute `install_windows.bat`.
+
+Abrir:
+
+```powershell
 python .\pixelfenda.py
 ```
 
-## Autoteste v0.3.0
+## Autoteste v0.4.0
 
-Antes do primeiro render grande:
-
-```powershell
-python .\teste_v030.py
-```
-
-O autoteste verifica:
-
-- projeto JSON;
-- LUT `.cube` 3D;
-- detecção de corte;
-- Layer Stack CPU;
-- rota gráfica OpenGL quando disponível;
-- todos os 25 efeitos;
-- todos os 19 filtros;
-- H.264/HEVC/AV1 NVENC.
-
-A v0.3.0 foi validada fisicamente em uma RTX 4060: o autoteste retornou renderer `NVIDIA GeForce RTX 4060/PCIe/SSE2`, Layer Stack GPU OK e `h264_nvenc`, `hevc_nvenc` e `av1_nvenc` como `OK`.
-
-## Como usar a pilha de camadas
-
-A aba **Camadas** é processada de cima para baixo. Exemplo:
-
-1. `VRAM Corrupted Memory` — 55%
-2. `Cyber Wire` — Screen, 42%
-3. `Cold Archive` — 65%
-4. LUT `Cobalt Noir` — 35%
-
-Cada camada possui:
-
-- `Ativa`;
-- tipo;
-- preset/LUT;
-- intensidade;
-- opacidade/mix;
-- blend;
-- fonte de modulação;
-- força da modulação;
-- opção de reset de memória em cortes;
-- nome opcional.
-
-### Intensidade x Opacidade
-
-**Intensidade** altera a força interna do efeito/filtro. **Opacidade** define quanto o resultado daquela camada entra na composição final. Isso permite, por exemplo, um efeito internamente agressivo com apenas 20% de presença na imagem final.
-
-## Modulação por camada
-
-Fontes disponíveis:
-
-- Sem modulação
-- Energia do áudio
-- Graves
-- Médios
-- Agudos
-- Batida/transiente
-- Movimento da cena
-- Pulso de corte de cena
-- LFO lento
-
-A análise necessária é ativada automaticamente quando uma camada pede determinada fonte. Assim, mesmo que a reatividade global esteja em `Livre`, uma camada configurada como `Beat` continuará recebendo análise FFT.
-
-## Automação por cena
-
-Quatro modos:
-
-- **Desligado** — nenhuma automação global de cena.
-- **Pulso nos cortes** — reforço curto da intensidade ao detectar corte.
-- **Resetar memória/feedback** — reinicia estados temporais nos cortes.
-- **Auto Scene Mutator** — cria novos ganhos determinísticos por camada a cada cena, preservando a ordem da pilha.
-
-A aba Automação também permite executar uma análise prévia e listar os tempos dos cortes detectados.
-
-## LUT `.cube`
-
-A v0.3.0 aceita:
-
-- `LUT_1D_SIZE`
-- `LUT_3D_SIZE`
-- `DOMAIN_MIN`
-- `DOMAIN_MAX`
-
-LUTs 3D usam interpolação trilinear em blocos de linhas para controlar o uso de memória. Na v0.3.0, LUTs customizadas usam uma rota CPU compatível; os demais efeitos/filtros continuam podendo usar OpenGL/RTX.
-
-LUTs autorais da distribuição (a distribuição pode incluir os `.cube`; o código-fonte também os reconstrói deterministicamente na primeira utilização):
-
-- `PixelFenda_CobaltNoir.cube`
-- `PixelFenda_AmberCrypt.cube`
-- `PixelFenda_ChromeIce.cube`
-
-## Áudio e separação de stems
-
-Os modos normais continuam disponíveis:
-
-- Manter áudio original
-- Vídeo sem áudio
-- Substituir por música/áudio
-- Misturar original + nova música
-
-A v0.3.0 adiciona:
-
-- Somente voz
-- Sem voz / instrumental
-
-Esses dois modos dependem de stems gerados previamente com Demucs.
-
-### Demucs opcional
-
-Execute:
-
-```text
-install_demucs_optional.bat
-```
-
-Esse instalador cria `.venv_demucs` separado da instalação principal. Isso evita tornar o PixelFenda dependente de PyTorch para quem não usa separação de áudio.
-
-Depois verifique:
+Antes do primeiro render:
 
 ```powershell
-python .\demucs_status.py
+python .\teste_v040.py
 ```
 
-A interface chama o Demucs localmente. Nenhuma API paga é usada. A disponibilidade de CUDA depende da versão do PyTorch instalada no ambiente Demucs.
+Ele verifica:
+1. projeto JSON format v4;
+2. keyframes, fades e janela temporal;
+3. máscara com feather;
+4. tracking Lucas–Kanade em objeto sintético;
+5. Beat Grid em sinal sintético de 120 BPM;
+6. Layer Stack CPU com tempo + máscara + filtro;
+7. rota gráfica com máscara + feedback + filtro;
+8. render real curto;
+9. detecção H.264/HEVC/AV1 NVENC.
 
-## Fila de render
+Na validação física da v0.4.0, a rota gráfica identificou `NVIDIA GeForce RTX 4060/PCIe/SSE2` e H.264, HEVC e AV1 NVENC retornaram `OK`.
 
-A aba **Fila** permite:
+## Interface
 
-- adicionar o trabalho atual;
-- selecionar vários vídeos de uma vez;
-- escolher uma pasta de saída;
-- renderizar todos sequencialmente usando o projeto/pilha atual.
+As abas são:
+- **Projeto** — entrada, saída, resolução, encoder, GPU e seed;
+- **Camadas** — pilha de efeitos/filtros/LUTs;
+- **Automação** — reatividade e cenas;
+- **Tempo & Máscara** — keyframes, janela temporal, máscaras, tracking e Beat Grid;
+- **Áudio / Stems** — original, mute, replace, mix e Demucs opcional;
+- **Fila** — vários vídeos com o mesmo projeto;
+- **Prévia** — comparação Antes/Depois em posição ajustável do vídeo.
 
-Por segurança, os modos `Somente voz` e `Instrumental` não são aplicados automaticamente à fila multi-vídeo, pois cada vídeo exige seus próprios stems.
+## Workflow sugerido
 
-## Projeto `.pixelfenda.json`
+1. Escolha o vídeo e a resolução.
+2. Monte a pilha na aba **Camadas**.
+3. Selecione uma camada e abra **Tempo & Máscara**.
+4. Defina onde a camada começa/termina.
+5. Adicione keyframes ou analise o Beat Grid.
+6. Defina uma máscara; se necessário, ative tracking.
+7. Gere a prévia em diferentes posições do vídeo.
+8. Renderize com `Automático` ou NVENC explícito.
 
-O projeto salva:
+## Projeto v4
 
-- resolução/enquadramento;
-- encoder;
-- modo GPU;
-- seed;
-- reatividade;
-- automação de cena;
-- áudio;
-- caminhos de stems;
-- todas as camadas e sua ordem.
+Arquivos `.pixelfenda.json` continuam legíveis. A v0.4 acrescenta por layer, entre outros campos:
 
-Há um exemplo em:
-
-```text
-presets/Projeto_Gothic_Layered.pixelfenda.json
+```json
+{
+  "start_s": 4.5,
+  "end_s": 12.0,
+  "fade_in_s": 0.4,
+  "fade_out_s": 0.6,
+  "keyframe_ease": "smooth",
+  "keyframes": [
+    {"time": 5.0, "intensity": 0.4, "opacity": 0.7},
+    {"time": 7.0, "intensity": 1.0, "opacity": 1.0}
+  ],
+  "mask_kind": "ellipse",
+  "mask_x": 0.5,
+  "mask_y": 0.45,
+  "mask_w": 0.55,
+  "mask_h": 0.70,
+  "mask_feather": 0.12,
+  "mask_track": true
+}
 ```
 
-## Linha de comando
+Projetos v3 continuam carregando; campos novos recebem defaults.
 
-### Projeto completo
+## Limitações conscientes
 
-```powershell
-python .\pixelfenda.py --cli --project .\meu_projeto.pixelfenda.json -i entrada.mp4 -o saida.mp4
-```
+- O tracking v0.4 movimenta o centro da máscara; ele não faz segmentação semântica de pessoa/cabelo/objeto.
+- Uma prévia isolada em posição arbitrária não possui todo o histórico anterior do tracker; o render sequencial é a referência para tracking temporal.
+- Mudanças bruscas de iluminação, oclusões e cortes podem exigir reposicionar/reiniciar a máscara.
+- Beat Grid é um detector leve baseado no onset já extraído pelo PixelFenda; não pretende substituir uma DAW.
+- LUT customizada continua em CPU nesta versão.
+- “Resume render” não foi ativado porque VRAM/feedback possuem estado temporal e um resume ingênuo mudaria o resultado.
 
-### Compatibilidade simples estilo v0.2
+## Pesquisa
 
-```powershell
-python .\pixelfenda.py --cli -i entrada.mp4 -o saida.mp4 --effect cyber_wire --filter cold_archive --reactive both --scene-mode mutate
-```
-
-### Detectar cenas
-
-```powershell
-python .\pixelfenda.py --cli -i entrada.mp4 --analyze-scenes --scene-threshold 0.22
-```
-
-## Compatibilidade v0.2.1
-
-A v0.3.0 preserva:
-
-- VRAM 1024×512×16-bit;
-- seis efeitos VRAM originais;
-- efeitos CPU/OpenGL da v0.2;
-- 19 filtros;
-- optical flow Farneback;
-- FFT de áudio;
-- H.264/HEVC/AV1 NVENC;
-- fallback CPU;
-- scroll e interface ajustável;
-- correção de uniforms GLSL otimizados;
-- diagnóstico GPU/NVENC.
-
-## Observações sobre GPU
-
-A RTX é usada em duas áreas independentes:
-
-1. **OpenGL/ModernGL** para shaders de efeitos/filtros.
-2. **NVENC** para codificação de vídeo.
-
-LUT customizada e alguns efeitos estruturais/VRAM continuam usando CPU por desenho. Em uma pilha mista, o programa combina os dois backends.
-
-## Pesquisa técnica da v0.3.0
-
-Veja:
-
-```text
-docs/research/PESQUISA_v0.3.0.md
-```
+Veja `docs/research/PESQUISA_v0.4.0.md`.
 
 ## Licença
 

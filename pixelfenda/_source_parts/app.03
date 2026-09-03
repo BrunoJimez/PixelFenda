@@ -1,4 +1,95 @@
-m vídeo de entrada.")
+        ttk.Label(row,text="Tempo (s)",style="Panel.TLabel").grid(row=0,column=0,sticky="w"); ttk.Entry(row,textvariable=self.kf_time,width=10).grid(row=0,column=1,sticky="w",padx=6)
+        ttk.Label(row,text="Int.%",style="Panel.TLabel").grid(row=0,column=2); ttk.Scale(row,from_=0,to=100,variable=self.kf_intensity).grid(row=0,column=3,sticky="ew",padx=5)
+        ttk.Label(row,text="Op.%",style="Panel.TLabel").grid(row=0,column=4); ttk.Scale(row,from_=0,to=100,variable=self.kf_opacity).grid(row=0,column=5,sticky="ew",padx=5)
+        ttk.Label(row,text="Mod.%",style="Panel.TLabel").grid(row=0,column=6); ttk.Scale(row,from_=0,to=100,variable=self.kf_mod).grid(row=0,column=7,sticky="ew",padx=5)
+        for c in (3,5,7): row.columnconfigure(c,weight=1)
+        br=ttk.Frame(k,style="Panel.TFrame"); br.pack(fill="x",padx=10,pady=(0,9))
+        ttk.Button(br,text="Adicionar / atualizar keyframe",command=self._add_keyframe).pack(side="left")
+        ttk.Button(br,text="Remover selecionado",command=self._remove_keyframe).pack(side="left",padx=6)
+        ttk.Button(br,text="Limpar keyframes",command=self._clear_keyframes).pack(side="left")
+
+        m=self._section(root,"3 · Máscara espacial + tracking")
+        q=ttk.Frame(m,style="Panel.TFrame"); q.pack(fill="x",padx=10,pady=9)
+        for c in (1,3): q.columnconfigure(c,weight=1)
+        ttk.Label(q,text="Máscara",style="Panel.TLabel").grid(row=0,column=0,sticky="w"); ttk.Combobox(q,textvariable=self.mask_kind_var,state="readonly",values=list(MASK_MODES.values())).grid(row=0,column=1,sticky="ew",padx=(7,14))
+        ttk.Label(q,text="Ângulo",style="Panel.TLabel").grid(row=0,column=2,sticky="w"); ttk.Scale(q,from_=-180,to=180,variable=self.mask_angle_var).grid(row=0,column=3,sticky="ew",padx=(7,0))
+        for r,(label,var) in enumerate((("Centro X %",self.mask_x_var),("Centro Y %",self.mask_y_var),("Largura %",self.mask_w_var),("Altura %",self.mask_h_var),("Feather %",self.mask_feather_var)),start=1):
+            col=0 if r<=3 else 2; rr=r if r<=3 else r-3
+            ttk.Label(q,text=label,style="Panel.TLabel").grid(row=rr,column=col,sticky="w",pady=4); ttk.Scale(q,from_=0 if "Centro" in label or "Feather" in label else 1,to=100,variable=var).grid(row=rr,column=col+1,sticky="ew",padx=(7,14 if col==0 else 0))
+        ttk.Checkbutton(q,text="Inverter máscara",variable=self.mask_invert_var).grid(row=4,column=0,sticky="w",pady=5)
+        ttk.Checkbutton(q,text="Rastrear centro por optical flow (retângulo/elipse)",variable=self.mask_track_var).grid(row=4,column=1,columnspan=2,sticky="w",pady=5)
+        ttk.Scale(q,from_=0,to=100,variable=self.mask_track_strength_var).grid(row=4,column=3,sticky="ew",padx=(7,0))
+
+        b=self._section(root,"4 · Beat Grid / sincronização musical")
+        ttk.Label(b,textvariable=self.beat_status_var,style="Panel.TLabel",wraplength=980).pack(anchor="w",padx=10,pady=(9,4))
+        rr=ttk.Frame(b,style="Panel.TFrame"); rr.pack(fill="x",padx=10,pady=5)
+        ttk.Button(rr,text="Analisar grade de batidas",command=self._analyze_beats).pack(side="left")
+        ttk.Label(rr,text="Pico %",style="Panel.TLabel").pack(side="left",padx=(18,4)); ttk.Scale(rr,from_=0,to=100,variable=self.beat_peak_var,length=180).pack(side="left")
+        ttk.Label(rr,text="Decay (s)",style="Panel.TLabel").pack(side="left",padx=(18,4)); ttk.Entry(rr,textvariable=self.beat_decay_var,width=8).pack(side="left")
+        ttk.Button(rr,text="Gerar pulsos nos keyframes",command=self._apply_beat_pulses).pack(side="left",padx=(18,0))
+        ttk.Label(b,text="A grade usa os transientes já extraídos pelo motor FFT do PixelFenda e cria keyframes reproduzíveis; não exige API nem serviço online.",style="Panel.TLabel",wraplength=980).pack(anchor="w",padx=10,pady=(2,9))
+
+    def _build_audio_tab(self, root) -> None:
+        a=self._section(root,"1 · Saída de áudio")
+        g=ttk.Frame(a,style="Panel.TFrame"); g.pack(fill="x",padx=10,pady=10); g.columnconfigure(1,weight=1)
+        ttk.Label(g,text="Modo",style="Panel.TLabel").grid(row=0,column=0,sticky="w")
+        ac=ttk.Combobox(g,textvariable=self.audio_mode_var,state="readonly",values=list(AUDIO_MODES.values())); ac.grid(row=0,column=1,columnspan=2,sticky="ew",padx=(8,0)); ac.bind("<<ComboboxSelected>>",lambda _e:self._update_states())
+        ttk.Label(g,text="Nova música",style="Panel.TLabel").grid(row=1,column=0,sticky="w",pady=6)
+        self.music_entry=ttk.Entry(g,textvariable=self.music_var); self.music_entry.grid(row=1,column=1,sticky="ew",padx=(8,7)); self.music_btn=ttk.Button(g,text="Abrir",command=self._choose_music); self.music_btn.grid(row=1,column=2)
+        stems=self._section(root,"2 · Separação de voz/música — Demucs opcional")
+        q=ttk.Frame(stems,style="Panel.TFrame"); q.pack(fill="x",padx=10,pady=9); q.columnconfigure(1,weight=1)
+        ttk.Label(q,text="Voz",style="Panel.TLabel").grid(row=0,column=0,sticky="w"); ttk.Entry(q,textvariable=self.stem_vocals_var).grid(row=0,column=1,sticky="ew",padx=(8,0))
+        ttk.Label(q,text="Instrumental",style="Panel.TLabel").grid(row=1,column=0,sticky="w",pady=6); ttk.Entry(q,textvariable=self.stem_inst_var).grid(row=1,column=1,sticky="ew",padx=(8,0))
+        buttons=ttk.Frame(stems,style="Panel.TFrame"); buttons.pack(fill="x",padx=10,pady=(0,8))
+        ttk.Button(buttons,text="Separar voz + instrumental",command=self._separate_stems).pack(side="left")
+        ttk.Button(buttons,text="Verificar Demucs",command=self._check_demucs).pack(side="left",padx=7)
+        ttk.Label(stems,text="O Demucs não faz parte das dependências básicas. A integração é local, sem API; se instalado com PyTorch/CUDA, pode usar a RTX 4060. A primeira execução baixa o modelo escolhido.",style="Panel.TLabel",wraplength=920).pack(anchor="w",padx=10,pady=(0,10))
+
+    def _build_queue_tab(self, root) -> None:
+        top=ttk.Frame(root); top.pack(fill="x",padx=10,pady=9)
+        ttk.Button(top,text="Adicionar trabalho atual",command=self._queue_current).pack(side="left",padx=3)
+        ttk.Button(top,text="Adicionar vários vídeos",command=self._queue_multiple).pack(side="left",padx=3)
+        ttk.Button(top,text="Remover",command=self._queue_remove).pack(side="left",padx=(15,3))
+        ttk.Button(top,text="Limpar",command=self._queue_clear).pack(side="left",padx=3)
+        ttk.Button(top,text="RENDERIZAR FILA",style="Accent.TButton",command=self._start_queue).pack(side="right")
+        d=ttk.Frame(root); d.pack(fill="x",padx=10,pady=(0,7))
+        ttk.Label(d,text="Pasta de saída em lote").pack(side="left"); ttk.Entry(d,textvariable=self.queue_dir_var).pack(side="left",fill="x",expand=True,padx=8); ttk.Button(d,text="Escolher",command=self._choose_queue_dir).pack(side="left")
+        self.queue_tree=ttk.Treeview(root,columns=("input","output"),show="headings",height=18)
+        self.queue_tree.heading("input",text="Entrada"); self.queue_tree.heading("output",text="Saída")
+        self.queue_tree.column("input",width=480); self.queue_tree.column("output",width=480)
+        self.queue_tree.pack(fill="both",expand=True,padx=10,pady=(0,10))
+
+    def _build_preview_tab(self, root) -> None:
+        top=ttk.Frame(root); top.pack(fill="x",padx=10,pady=9)
+        ttk.Button(top,text="Gerar comparação antes/depois",command=self._preview).pack(side="left")
+        ttk.Label(top,text="Posição no vídeo").pack(side="left",padx=(18,5))
+        ttk.Scale(top,from_=0,to=100,variable=self.preview_pos_var).pack(side="left",fill="x",expand=True)
+        ttk.Label(top,textvariable=self.preview_pos_var,width=6).pack(side="left",padx=5)
+        self.preview_label=ttk.Label(root,anchor="center")
+        self.preview_label.pack(fill="both",expand=True,padx=10,pady=(0,10))
+
+    # ------------------------------- files/settings -------------------------------
+    def _choose_input(self):
+        p=filedialog.askopenfilename(title="Selecione um vídeo",filetypes=[("Vídeos","*.mp4 *.mov *.mkv *.avi *.webm *.m4v"),("Todos","*.*")])
+        if p:
+            self.input_var.set(p); self.output_var.set(make_output_path(p,"v040"))
+            if not self.queue_dir_var.get(): self.queue_dir_var.set(str(Path(p).parent))
+    def _choose_output(self):
+        p=filedialog.asksaveasfilename(title="Salvar vídeo",defaultextension=".mp4",filetypes=[("MP4","*.mp4")]);
+        if p: self.output_var.set(p)
+    def _choose_music(self):
+        p=filedialog.askopenfilename(title="Selecione música/áudio",filetypes=[("Áudio","*.mp3 *.wav *.flac *.m4a *.aac *.ogg *.opus *.mp4"),("Todos","*.*")]);
+        if p: self.music_var.set(p)
+    def _choose_lut(self):
+        p=filedialog.askopenfilename(title="Selecione LUT .cube",filetypes=[("LUT Cube","*.cube"),("Todos","*.*")]);
+        if p: self.le_lut.set(p)
+    def _choose_queue_dir(self):
+        p=filedialog.askdirectory(title="Pasta de saída da fila");
+        if p: self.queue_dir_var.set(p)
+
+    def _resolve_size(self):
+        inp=self.input_var.get().strip()
+        if not inp: raise ValueError("Selecione um vídeo de entrada.")
         p=RESOLUTION_BY_LABEL[self.res_var.get()]
         if p.key=="original":
             i=probe_video(inp); return i.width,i.height
@@ -38,109 +129,3 @@ m vídeo de entrada.")
         else:
             p=filedialog.askopenfilename(title="Selecione LUT .cube",filetypes=[("LUT Cube","*.cube")])
             if not p: return
-            s=LayerSpec(kind="lut",key="custom_lut",lut_path=p,intensity=1.0)
-        self.layers.append(s); self._selected_layer=len(self.layers)-1; self._refresh_layers()
-
-    def _on_layer_select(self,_e=None):
-        sel=self.layer_tree.selection()
-        if not sel: return
-        self._selected_layer=int(sel[0]); self._load_layer_editor(self._selected_layer)
-
-    def _load_layer_editor(self,idx:int):
-        s=self.layers[idx]
-        self.le_enabled.set(s.enabled); self.le_kind.set(s.kind); self.le_intensity.set(s.intensity*100); self.le_opacity.set(s.opacity*100)
-        self.le_blend.set(BLEND_MODES.get(s.blend,BLEND_MODES["normal"])); self.le_mod.set(MOD_SOURCES.get(s.mod_source,MOD_SOURCES["none"])); self.le_mod_amount.set(s.mod_amount*100); self.le_scene_reset.set(s.scene_reset); self.le_name.set(s.name or ""); self.le_lut.set(s.lut_path or "")
-        if s.kind=="effect": self.le_preset.set(EFFECT_PRESETS.get(s.key,s.key))
-        elif s.kind=="filter": self.le_preset.set(FILTER_PRESETS.get(s.key,s.key))
-        else: self.le_preset.set("")
-        self._layer_editor_kind()
-
-    def _layer_editor_kind(self):
-        kind=self.le_kind.get()
-        if kind=="effect": vals=list(EFFECT_PRESETS.values()); state="readonly"; lut_state="disabled"
-        elif kind=="filter": vals=[v for k,v in FILTER_PRESETS.items() if k!="none"]; state="readonly"; lut_state="disabled"
-        else: vals=[]; state="disabled"; lut_state="normal"
-        self.preset_combo.configure(values=vals,state=state); self.lut_entry.configure(state=lut_state); self.lut_btn.configure(state=lut_state)
-        if vals and self.le_preset.get() not in vals: self.le_preset.set(vals[0])
-
-    def _apply_layer_editor(self):
-        if self._selected_layer is None or self._selected_layer>=len(self.layers): return
-        kind=self.le_kind.get(); old=self.layers[self._selected_layer]
-        if kind=="effect": key=EFFECT_BY_LABEL.get(self.le_preset.get(),"corrupted_memory"); lut=None
-        elif kind=="filter": key=FILTER_BY_LABEL.get(self.le_preset.get(),"vintage_70"); lut=None
-        else:
-            lut=self.le_lut.get().strip() or None
-            if not lut or not Path(lut).is_file(): messagebox.showerror("PixelFenda","Selecione um arquivo .cube válido."); return
-            key="custom_lut"
-        self.layers[self._selected_layer]=LayerSpec(kind=kind,key=key,intensity=self.le_intensity.get()/100,opacity=self.le_opacity.get()/100,blend=BLEND_BY_LABEL.get(self.le_blend.get(),"normal"),mod_source=MOD_BY_LABEL.get(self.le_mod.get(),"none"),mod_amount=self.le_mod_amount.get()/100,enabled=self.le_enabled.get(),scene_reset=self.le_scene_reset.get(),lut_path=lut,name=self.le_name.get().strip() or None,uid=old.uid).normalized()
-        self._refresh_layers()
-
-    def _duplicate_layer(self):
-        if self._selected_layer is None or not self.layers:return
-        s=LayerSpec.from_dict(self.layers[self._selected_layer].to_dict()); s.uid=LayerSpec().uid; self.layers.insert(self._selected_layer+1,s); self._selected_layer+=1; self._refresh_layers()
-    def _remove_layer(self):
-        if self._selected_layer is None or not self.layers:return
-        del self.layers[self._selected_layer]; self._selected_layer=max(0,min(self._selected_layer,len(self.layers)-1)) if self.layers else None; self._refresh_layers()
-    def _move_layer(self,d:int):
-        if self._selected_layer is None:return
-        j=self._selected_layer+d
-        if j<0 or j>=len(self.layers):return
-        self.layers[self._selected_layer],self.layers[j]=self.layers[j],self.layers[self._selected_layer]; self._selected_layer=j; self._refresh_layers()
-
-    # -------------------------------- project --------------------------------
-    def _snapshot_project(self)->ProjectDocument:
-        res=RESOLUTION_BY_LABEL[self.res_var.get()]
-        return ProjectDocument(name="Projeto PixelFenda",input_path=self.input_var.get().strip(),output_path=self.output_var.get().strip(),resolution=res.key,width=int(self.custom_w.get() or 1080),height=int(self.custom_h.get() or 1920),resize_mode=RESIZE_BY_LABEL[self.resize_var.get()],encoder_mode=ENCODER_BY_LABEL[self.encoder_var.get()],gpu_mode=GPU_BY_LABEL[self.gpu_var.get()],seed=int(self.seed_var.get()),reactive_mode=REACTIVE_BY_LABEL[self.reactive_var.get()],scene_mode=SCENE_BY_LABEL[self.scene_mode_var.get()],scene_threshold=self.scene_threshold_var.get()/100,audio_mode=AUDIO_BY_LABEL[self.audio_mode_var.get()],music_path=self.music_var.get().strip() or None,stem_vocals_path=self.stem_vocals_var.get().strip() or None,stem_instrumental_path=self.stem_inst_var.get().strip() or None,layers=[LayerSpec.from_dict(x.to_dict()) for x in self.layers])
-
-    def _save_project(self):
-        try: doc=self._snapshot_project()
-        except Exception as exc: messagebox.showerror("PixelFenda",str(exc)); return
-        p=filedialog.asksaveasfilename(title="Salvar projeto PixelFenda",defaultextension=".pixelfenda.json",filetypes=[("Projeto PixelFenda","*.pixelfenda.json"),("JSON","*.json")])
-        if p: doc.save(p); self.status_var.set(f"Projeto salvo · {Path(p).name}")
-    def _load_project(self):
-        p=filedialog.askopenfilename(title="Abrir projeto PixelFenda",filetypes=[("Projeto PixelFenda","*.pixelfenda.json *.json")]);
-        if not p:return
-        try: self._apply_project(ProjectDocument.load(p)); self.status_var.set(f"Projeto carregado · {Path(p).name}")
-        except Exception as exc: messagebox.showerror("PixelFenda",self._format_error(exc,"Abrir projeto"))
-    def _apply_project(self,d:ProjectDocument):
-        self.input_var.set(d.input_path); self.output_var.set(d.output_path); self.res_var.set(next((x.label for x in RESOLUTION_PRESETS if x.key==d.resolution),RESOLUTION_PRESETS[0].label)); self.custom_w.set(str(d.width)); self.custom_h.set(str(d.height)); self.resize_var.set(RESIZE_MODES.get(d.resize_mode,RESIZE_MODES["crop"])); self.encoder_var.set(ENCODER_MODES.get(d.encoder_mode,ENCODER_MODES["auto"])); self.gpu_var.set(GPU_MODES.get(d.gpu_mode,GPU_MODES["auto"])); self.seed_var.set(str(d.seed)); self.reactive_var.set(REACTIVE_MODES.get(d.reactive_mode,REACTIVE_MODES["none"])); self.scene_mode_var.set(SCENE_MODES.get(d.scene_mode,SCENE_MODES["off"])); self.scene_threshold_var.set(d.scene_threshold*100); self.audio_mode_var.set(AUDIO_MODES.get(d.audio_mode,AUDIO_MODES["original"])); self.music_var.set(d.music_path or ""); self.stem_vocals_var.set(d.stem_vocals_path or ""); self.stem_inst_var.set(d.stem_instrumental_path or ""); self.layers=d.layers or [LayerSpec()]; self._selected_layer=0; self._refresh_layers(); self._update_states()
-
-    # ------------------------------- scene/stems -------------------------------
-    def _analyze_scenes(self):
-        inp=self.input_var.get().strip()
-        if not inp or not os.path.isfile(inp): messagebox.showerror("PixelFenda","Selecione um vídeo válido."); return
-        if self.worker and self.worker.is_alive(): return
-        threshold=self.scene_threshold_var.get()/100; self.status_var.set("Analisando cenas…")
-        def prog(v,t): self.after(0,lambda:self._set_progress(v,t))
-        def work():
-            try:
-                ev=analyze_scenes(inp,threshold,progress=prog)
-                text=f"Cenas detectadas: {len(ev)}\n\n"+"\n".join(f"{i+1:03d} · {e.seconds:8.3f}s · score {e.score:.3f}" for i,e in enumerate(ev[:500]))
-                self.after(0,lambda:self._scene_done(text))
-            except Exception as exc:
-                detail=self._format_error(exc,"Análise de cenas"); self.after(0,lambda t=detail:self._failed(t))
-        self.worker=threading.Thread(target=work,daemon=True); self.worker.start()
-    def _scene_done(self,text): self.progress["value"]=100; self.status_var.set("Análise de cenas concluída"); self.scene_summary.delete("1.0","end"); self.scene_summary.insert("1.0",text)
-    def _check_demucs(self): messagebox.showinfo("PixelFenda", "Demucs detectado neste ambiente." if demucs_available() else "Demucs não detectado. Consulte README: instalação opcional de stems.")
-    def _separate_stems(self):
-        inp=self.input_var.get().strip()
-        if not inp or not os.path.isfile(inp): messagebox.showerror("PixelFenda","Selecione um vídeo/áudio válido."); return
-        if self.worker and self.worker.is_alive(): return
-        outdir=str(Path(inp).parent/"pixelfenda_stems")
-        def prog(v,t): self.after(0,lambda:self._set_progress(v,t))
-        def work():
-            try:
-                r=separate_vocals(inp,outdir,progress=prog)
-                self.after(0,lambda:self._stems_done(r))
-            except Exception as exc:
-                detail=self._format_error(exc,"Separação Demucs"); self.after(0,lambda t=detail:self._failed(t))
-        self.worker=threading.Thread(target=work,daemon=True); self.worker.start(); self.status_var.set("Separando stems…")
-    def _stems_done(self,r): self.stem_vocals_var.set(r["vocals"]); self.stem_inst_var.set(r["instrumental"]); self.progress["value"]=100; self.status_var.set("Stems concluídos"); messagebox.showinfo("PixelFenda",f"Stems gerados em:\n{r['folder']}")
-
-    # -------------------------------- preview --------------------------------
-    def _preview(self):
-        try:
-            inp=self.input_var.get().strip(); w,h=self._resolve_size(); cap=cv2.VideoCapture(inp)
-            if not cap.isOpened(): raise RuntimeError("Não foi possível abrir o vídeo.")
-            n=int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0); pos=self.preview_pos_var.get()/100
-            if n: cap.set(cv2.CAP_PROP_POS_FRAMES,max(0,mi

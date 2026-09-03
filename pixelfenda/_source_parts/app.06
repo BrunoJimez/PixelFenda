@@ -1,0 +1,24 @@
+        except Exception as exc: messagebox.showerror("PixelFenda",self._format_error(exc,"Validação antes do render")); return
+        self.render_btn.configure(state="disabled"); self.progress["value"]=0; self.status_var.set("Iniciando render por camadas…")
+        def prog(v,t): self.after(0,lambda:self._set_progress(v,t))
+        def work():
+            try:
+                r=render_video_layers(inp,out,w,h,doc.layers,resize_mode=doc.resize_mode,seed=doc.seed,reactive_mode=doc.reactive_mode,scene_mode=doc.scene_mode,scene_threshold=doc.scene_threshold,audio_mode=doc.audio_mode,music_path=doc.music_path,stem_vocals_path=doc.stem_vocals_path,stem_instrumental_path=doc.stem_instrumental_path,encoder_mode=doc.encoder_mode,gpu_mode=doc.gpu_mode,progress=prog)
+                self.after(0,lambda:self._done(r))
+            except Exception as exc:
+                detail=self._format_error(exc,"Falha durante a renderização"); self.after(0,lambda t=detail:self._failed(t))
+        self.worker=threading.Thread(target=work,daemon=True); self.worker.start()
+
+    def _format_error(self,exc:BaseException,context:str)->str:
+        msg=str(exc).strip() or repr(exc); detail=f"{type(exc).__name__}: {msg}"
+        try:
+            log=Path(__file__).resolve().parent.parent/"pixelfenda_error.log"; stamp=datetime.now().isoformat(timespec="seconds"); trace="".join(traceback.format_exception(type(exc),exc,exc.__traceback__)); log.open("a",encoding="utf-8").write(f"\n[{stamp}] {context}\n{trace}\n")
+        except Exception: pass
+        return detail
+    def _set_progress(self,v,t): self.progress["value"]=max(0,min(100,v*100)); self.status_var.set(t)
+    def _done(self,r): self.render_btn.configure(state="normal"); self.progress["value"]=100; self.status_var.set(f"Concluído · {r['encoder']} · {r['gpu_renderer']} · {r['active_layers']} camadas"); messagebox.showinfo("PixelFenda",f"Vídeo gerado com sucesso:\n{r['output']}")
+    def _failed(self,t): self.render_btn.configure(state="normal"); self.status_var.set("Falha."); messagebox.showerror("PixelFenda",t)
+
+
+def run_gui() -> None:
+    PixelFendaApp().mainloop()

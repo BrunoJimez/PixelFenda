@@ -54,6 +54,11 @@ EFFECT_PRESETS = {
     "psx_dither": "PSX Dither — 15-bit, pixels e dithering",
     "gothic_halo": "Gothic Halo — silhueta, halo e carmim",
     "signal_grid": "Signal Grid — grade de sinal e blocos",
+    "temporal_shred": "Temporal Shred — tiras de memória temporal",
+    "prism_rift": "Prism Rift — fratura RGB radial",
+    "edge_strobe": "Edge Strobe — bordas pulsadas por beat/agudos",
+    "data_bloom": "Data Bloom — bloom digital e blocos luminosos",
+    "motion_tunnel": "Motion Tunnel — túnel de feedback e movimento",
 }
 EFFECT_BY_LABEL = {v: k for k, v in EFFECT_PRESETS.items()}
 VRAM_EFFECTS = {

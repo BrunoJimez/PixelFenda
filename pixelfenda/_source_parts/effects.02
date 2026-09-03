@@ -1,4 +1,14 @@
-t":
+            rows = self.rng.choice(core_h, size=max(4, int(8+32*s)), replace=False)
+            for y in rows:
+                threshold = int(70 + self.rng.integers(0,120))
+                mask = lum[y] > threshold
+                idx = np.flatnonzero(mask)
+                if idx.size > 4:
+                    vals = core[y, idx]
+                    order = np.argsort(np.sum(vals.astype(np.int32), axis=1))
+                    core[y, idx] = vals[order]
+            out = cv2.resize(core, (w,h), interpolation=cv2.INTER_NEAREST)
+        elif key == "scanline_melt":
             step = max(2, int(9-6*s))
             for y in range(0,h,step):
                 bh = min(step, h-y)
@@ -19,7 +29,6 @@ t":
             out[1::2] = (out[1::2].astype(np.float32)*(0.72-0.14*s)).astype(np.uint8)
             out[...,0] = np.roll(out[...,0], 1, axis=1)
             out[...,2] = np.roll(out[...,2], -1, axis=1)
-            # mild barrel-ish warp via remap
             yy,xx=np.indices((h,w),dtype=np.float32)
             nx=(xx-w/2)/(w/2); ny=(yy-h/2)/(h/2); rad=nx*nx+ny*ny
             k=0.035*s
@@ -120,5 +129,40 @@ t":
                     out[y:y+bh]=np.roll(out[y:y+bh],sh,axis=1)
             out[:,::cell]=np.clip(out[:,::cell].astype(np.int16)+np.array([80,120,0]),0,255).astype(np.uint8)
             out[::cell,:]=np.clip(out[::cell,:].astype(np.int16)+np.array([40,75,0]),0,255).astype(np.uint8)
+        elif key == "temporal_shred":
+            src=self.prev if self.prev is not None else out
+            band=max(8,int(42-24*s)); result=out.copy()
+            for x0 in range(0,w,band):
+                if ((x0//band)+self.frame_index)%3==0 or self.rng.random()<0.18+0.42*s:
+                    x1=min(w,x0+band); shift=int((r.motion_dx*95+math.sin(self.frame_index*.19+x0*.03)*36)*s)
+                    result[:,x0:x1]=np.roll(src[:,x0:x1],shift,axis=0)
+            out=cv2.addWeighted(out,0.55,result,0.62,0); self.prev=out.copy()
+        elif key == "prism_rift":
+            center=(w/2+r.motion_dx*w*.12,h/2+r.motion_dy*h*.12)
+            scales=(1.0+.018*s,1.0,1.0-.016*s); chans=cv2.split(out); warped=[]
+            for ch,sc in zip(chans,scales):
+                M=cv2.getRotationMatrix2D(center,0,sc); warped.append(cv2.warpAffine(ch,M,(w,h),flags=cv2.INTER_LINEAR,borderMode=cv2.BORDER_REFLECT))
+            out=cv2.merge(warped)
+            if r.beat>.55: out=np.roll(out,int((4+18*s)*(1 if self.frame_index%2 else -1)),axis=1)
+        elif key == "edge_strobe":
+            gray=cv2.cvtColor(out,cv2.COLOR_BGR2GRAY); edge=cv2.Canny(gray,50,140)
+            pulse=float(np.clip(max(r.beat,r.treble*.75),0,1)); glow=cv2.GaussianBlur(edge,(0,0),1.2+4*s)
+            base=(out.astype(np.float32)*(0.38+0.35*(1-s))).astype(np.uint8)
+            base[...,1]=np.maximum(base[...,1],np.clip(glow*(.35+1.7*pulse*s),0,255).astype(np.uint8))
+            base[...,2]=np.maximum(base[...,2],np.clip(np.roll(glow,2,axis=1)*(.25+1.5*pulse*s),0,255).astype(np.uint8)); out=base
+        elif key == "data_bloom":
+            gray=cv2.cvtColor(out,cv2.COLOR_BGR2GRAY); hi=np.where(gray>int(165-55*s),gray,0).astype(np.uint8)
+            bloom=cv2.GaussianBlur(hi,(0,0),3+12*s); b,g,rr=cv2.split(out)
+            rr=np.maximum(rr,np.clip(bloom*(.45+1.1*s),0,255).astype(np.uint8)); g=np.maximum(g,np.clip(bloom*(.25+.65*s),0,255).astype(np.uint8)); out=cv2.merge([b,g,rr])
+            block=max(10,int(46-26*s));
+            if self.frame_index%3==0:
+                for y0 in range(0,h,block):
+                    if self.rng.random()<.12+.32*s: out[y0:min(h,y0+block)]=np.roll(out[y0:min(h,y0+block)],int(self.rng.integers(-block*2,block*2+1)),axis=1)
+        elif key == "motion_tunnel":
+            if self.prev is not None:
+                zoom=.975-.035*s; M=cv2.getRotationMatrix2D((w/2,h/2),math.sin(self.frame_index*.08)*1.2*s,zoom)
+                M[0,2]+=r.motion_dx*w*.018; M[1,2]+=r.motion_dy*h*.018
+                hist=cv2.warpAffine(self.prev,M,(w,h),borderMode=cv2.BORDER_REFLECT); out=cv2.addWeighted(out,.58,hist,.58,0)
+            self.prev=out.copy()
 
         return out
