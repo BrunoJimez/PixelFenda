@@ -1,0 +1,115 @@
+    def _build_runtime(self, idx: int, spec: LayerSpec) -> _Runtime:
+        local_seed = self.seed + idx * 1009 + 17
+        rt = _Runtime(spec=spec)
+        if spec.kind == "effect":
+            if spec.key in VRAM_EFFECTS:
+                rt.vram = PersistentVRAMEffect(self.width, self.height, spec.intensity, local_seed, spec.key)
+            else:
+                rt.cpu = CPUEffectEngine(self.width, self.height, local_seed)
+        elif spec.kind == "filter":
+            rt.filt = FilterEngine(self.width, self.height, local_seed)
+        elif spec.kind == "lut" and spec.lut_path:
+            rt.lut = CubeLUT.load(spec.lut_path)
+        if spec.mask_track and spec.mask_kind in {"rectangle", "ellipse"}:
+            rt.mask_tracker = MaskTracker(self.width, self.height, spec)
+        return rt
+
+    def _reset_runtime(self, idx: int) -> None:
+        old = self.runtimes[idx]
+        self.runtimes[idx] = self._build_runtime(idx + self.scene_index * 97, old.spec)
+
+    def _scene_event(self, frame: np.ndarray) -> tuple[bool, float]:
+        if self.scene_mode == "off" and not any(x.spec.mod_source == "scene" or x.spec.scene_reset for x in self.runtimes):
+            return False, 0.0
+        cut, _score, pulse = self.scene_detector.update(frame)
+        if cut:
+            self.scene_index += 1
+            if self.scene_mode in {"reset", "mutate"}:
+                for i, rt in enumerate(self.runtimes):
+                    if self.scene_mode == "reset" or rt.spec.scene_reset:
+                        self._reset_runtime(i)
+            if self.scene_mode == "mutate":
+                for rt in self.runtimes:
+                    if rt.spec.enabled:
+                        if rt.spec.kind == "filter":
+                            rt.scene_gain = float(self.rng.uniform(0.82, 1.15))
+                        else:
+                            rt.scene_gain = float(self.rng.uniform(0.62, 1.38))
+        return cut, pulse
+
+    def _strength(self, rt: _Runtime, state: ReactiveState, pulse: float, time_s: float, base_intensity: float, mod_amount: float) -> float:
+        base = float(base_intensity)
+        a = float(mod_amount)
+        if a > 0.0 and rt.spec.mod_source != "none":
+            v = modulation_value(rt.spec.mod_source, state, pulse, time_s, self.seed + self.frame_index)
+            # Around the authored base value: 0 -> 57.5%, 0.5 -> 100%, 1 -> 142.5% at full amount.
+            base *= 1.0 + a * 0.85 * (v - 0.5)
+        if self.scene_mode == "pulse":
+            base *= 1.0 + 0.35 * pulse
+        base *= rt.scene_gain
+        return float(np.clip(base, 0.0, 1.0))
+
+    def process(self, frame_bgr: np.ndarray, state: ReactiveState) -> tuple[np.ndarray, dict]:
+        self.frame_index += 1
+        time_s = (self.frame_index - 1) / self.fps
+        cut, pulse = self._scene_event(frame_bgr)
+        out = frame_bgr
+        active = 0
+        masked = 0
+        tracked = 0
+        for idx, rt in enumerate(self.runtimes):
+            spec = rt.spec
+            if not spec.enabled:
+                continue
+            tv = temporal_values(spec, time_s, self.duration if self.duration > 0 else max(time_s + 1.0, 1.0))
+            if not tv.active or tv.opacity <= 0.0:
+                continue
+            active += 1
+            strength = self._strength(rt, state, pulse, time_s, tv.intensity, tv.mod_amount)
+            base = out
+            layer = base
+            if spec.kind == "effect":
+                if rt.vram is not None:
+                    rt.vram.intensity = strength
+                    layer = rt.vram.process(base, state)
+                elif self.gpu is not None and spec.key in GPU_EFFECT_IDS:
+                    if spec.key in GPU_FEEDBACK_EFFECTS:
+                        if rt.prev_gpu is None:
+                            rt.prev_gpu = np.zeros_like(base)
+                        self.gpu.set_prev_frame(rt.prev_gpu)
+                    layer = self.gpu.process(base, spec.key, "none", strength, state, self.fps, 0.0, time_seconds=time_s)
+                    if spec.key in GPU_FEEDBACK_EFFECTS:
+                        rt.prev_gpu = layer.copy()
+                elif rt.cpu is not None:
+                    layer = rt.cpu.process(base, spec.key, strength, state)
+            elif spec.kind == "filter":
+                if self.gpu is not None and spec.key in FILTER_IDS:
+                    layer = self.gpu.process(base, "", spec.key, 0.0, state, self.fps, strength, time_seconds=time_s)
+                elif rt.filt is not None:
+                    layer = rt.filt.apply(base, spec.key, strength, self.frame_index)
+            elif spec.kind == "lut" and rt.lut is not None:
+                layer = rt.lut.apply(base, strength)
+            center = None
+            if rt.mask_tracker is not None:
+                center = rt.mask_tracker.update(frame_bgr, spec)
+                tracked += 1
+            mask = None
+            if spec.mask_kind != "full" or spec.mask_invert:
+                mask = build_mask(self.width, self.height, spec, center_override=center)
+                masked += 1
+            out = blend_images_masked(base, layer, spec.blend, tv.opacity, mask)
+        return out, {
+            "active_layers": active,
+            "masked_layers": masked,
+            "tracked_masks": tracked,
+            "scene_cut": cut,
+            "scene_pulse": pulse,
+            "scene_index": self.scene_index,
+            "renderer": self.renderer,
+        }
+
+    def release(self) -> None:
+        if self.gpu is not None:
+            try:
+                self.gpu.release()
+            except Exception:

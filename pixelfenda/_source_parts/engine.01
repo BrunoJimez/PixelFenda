@@ -197,7 +197,6 @@ def render_video(
     elif "-an" not in cmd: cmd += ["-an"]
     cmd += ["-movflags","+faststart",output_path]
 
-    # Reactive analysis is independent of what gets muxed into the final file.
     audio_track = AudioReactiveTrack.silent(max(1,total_frames))
     if reactive_mode in {"audio","both"}:
         source = music_path if music_path and os.path.isfile(music_path) else input_path
@@ -237,8 +236,6 @@ def render_video(
             elif gpu and ((apply_effect and effect_preset in GPU_EFFECT_IDS) or apply_filter):
                 eff=effect_preset if apply_effect and effect_preset in GPU_EFFECT_IDS else ""
                 fil=filter_preset if apply_filter else "none"
-                # intensity controls effect; filter has its own blend only in CPU. In GPU,
-                # pre-blend filter by running full grade then final user blend below when needed.
                 out=gpu.process(out,eff,fil,effect_intensity if apply_effect else 0.0,state,fps,filter_intensity if apply_filter else 0.0)
             else:
                 if apply_effect: out=cpu.process(out,effect_preset,effect_intensity,state)
@@ -256,15 +253,3 @@ def render_video(
         cap.release()
         if gpu: gpu.release()
         if proc.stdin:
-            try: proc.stdin.close()
-            except Exception: pass
-    stderr=proc.stderr.read() if proc.stderr else b""
-    code=proc.wait()
-    if code!=0:
-        msg=stderr.decode("utf-8",errors="replace")[-5000:]
-        raise RuntimeError(f"FFmpeg encerrou com erro ({code}).\n{msg}")
-    if progress: progress(1.0,"Concluído")
-    return {
-        "input":input_path,"output":output_path,"width":width,"height":height,"fps":fps,
-        "frames":rendered,"encoder":encoder,"gpu_renderer":gpu_renderer,
-        "effect_enab

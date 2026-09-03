@@ -28,6 +28,24 @@ class LayerSpec:
     scene_reset: bool = False
     lut_path: str | None = None
     name: str | None = None
+    # v0.4 temporal window + keyframes
+    start_s: float = 0.0
+    end_s: float = -1.0
+    fade_in_s: float = 0.0
+    fade_out_s: float = 0.0
+    keyframe_ease: str = "smooth"
+    keyframes: list[dict[str, float]] = field(default_factory=list)
+    # v0.4 spatial mask + lightweight tracking
+    mask_kind: str = "full"
+    mask_x: float = 0.5
+    mask_y: float = 0.5
+    mask_w: float = 0.6
+    mask_h: float = 0.6
+    mask_feather: float = 0.08
+    mask_angle: float = 0.0
+    mask_invert: bool = False
+    mask_track: bool = False
+    mask_track_strength: float = 1.0
     uid: str = field(default_factory=lambda: uuid.uuid4().hex[:10])
 
     def normalized(self) -> "LayerSpec":
@@ -37,6 +55,23 @@ class LayerSpec:
         self.mod_amount = max(0.0, min(1.0, float(self.mod_amount)))
         self.enabled = bool(self.enabled)
         self.scene_reset = bool(self.scene_reset)
+        self.start_s = max(0.0, float(self.start_s))
+        self.end_s = float(self.end_s)
+        self.fade_in_s = max(0.0, float(self.fade_in_s))
+        self.fade_out_s = max(0.0, float(self.fade_out_s))
+        self.keyframe_ease = self.keyframe_ease if self.keyframe_ease in {"linear","smooth","ease_in","ease_out","hold"} else "smooth"
+        from .temporal import normalize_keyframes
+        self.keyframes = normalize_keyframes(self.keyframes or [])
+        self.mask_kind = self.mask_kind if self.mask_kind in {"full","rectangle","ellipse","linear","vignette"} else "full"
+        self.mask_x = max(0.0, min(1.0, float(self.mask_x)))
+        self.mask_y = max(0.0, min(1.0, float(self.mask_y)))
+        self.mask_w = max(0.01, min(1.5, float(self.mask_w)))
+        self.mask_h = max(0.01, min(1.5, float(self.mask_h)))
+        self.mask_feather = max(0.0, min(1.0, float(self.mask_feather)))
+        self.mask_angle = float(self.mask_angle)
+        self.mask_invert = bool(self.mask_invert)
+        self.mask_track = bool(self.mask_track)
+        self.mask_track_strength = max(0.0, min(1.0, float(self.mask_track_strength)))
         return self
 
     @classmethod
@@ -50,8 +85,8 @@ class LayerSpec:
 
 @dataclass
 class ProjectDocument:
-    format_version: int = 3
-    app_version: str = "0.3.0"
+    format_version: int = 4
+    app_version: str = "0.4.0"
     name: str = "Projeto PixelFenda"
     input_path: str = ""
     output_path: str = ""

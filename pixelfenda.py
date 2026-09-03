@@ -23,7 +23,7 @@ def _resolve_size(doc: ProjectDocument, input_path: str) -> tuple[int, int]:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="PixelFenda v0.3.0 — Layer Mutation Studio")
+    p = argparse.ArgumentParser(description="PixelFenda v0.4.0 — Temporal Director")
     p.add_argument("--cli", action="store_true", help="Executa sem interface gráfica")
     p.add_argument("--project", help="Projeto .pixelfenda.json")
     p.add_argument("-i", "--input")
@@ -80,7 +80,7 @@ def main() -> None:
         return
 
     w, h = _resolve_size(doc, doc.input_path)
-    out = doc.output_path or make_output_path(doc.input_path, "v030")
+    out = doc.output_path or make_output_path(doc.input_path, "v040")
     def prog(v, t):
         print(f"[{v*100:6.2f}%] {t}", flush=True)
     result = render_video_layers(

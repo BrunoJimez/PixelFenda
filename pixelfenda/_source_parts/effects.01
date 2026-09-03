@@ -232,14 +232,3 @@ class CPUEffectEngine:
             core_w = min(480, w); core_h = max(80, int(core_w*h/w))
             core = cv2.resize(out, (core_w, core_h), interpolation=cv2.INTER_AREA)
             lum = cv2.cvtColor(core, cv2.COLOR_BGR2GRAY)
-            rows = self.rng.choice(core_h, size=max(4, int(8+32*s)), replace=False)
-            for y in rows:
-                threshold = int(70 + self.rng.integers(0,120))
-                mask = lum[y] > threshold
-                idx = np.flatnonzero(mask)
-                if idx.size > 4:
-                    vals = core[y, idx]
-                    order = np.argsort(np.sum(vals.astype(np.int32), axis=1))
-                    core[y, idx] = vals[order]
-            out = cv2.resize(core, (w,h), interpolation=cv2.INTER_NEAREST)
-        elif key == "scanline_mel
